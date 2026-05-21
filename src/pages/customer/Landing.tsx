@@ -12,7 +12,25 @@ export default function Landing() {
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
                         Welcome to Grand Hotel
                     </h1>
-                    <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto">
+                    
+                    {/* Video Section */}
+                    <div className="flex justify-center mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                        <div className="relative w-full max-w-4xl aspect-video rounded-2xl overflow-hidden shadow-2xl border-4 border-blue-800/30">
+                            <video 
+                                className="w-full h-full object-cover"
+                                controls 
+                                autoPlay 
+                                muted 
+                                loop
+                                /* Using the Hotel Tour.mp4 from the public directory */
+                                src="/Hotel%20Tour.mp4"
+                            >
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>
+                    </div>
+
+                    <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
                         Experience luxury and comfort with our AI-powered concierge service.
                         Book rooms, request services, and get instant assistance 24/7.
                     </p>
