@@ -72,13 +72,25 @@ export default function Help() {
                     <div className="grid md:grid-cols-3 gap-4 text-center">
                         <div>
                             <p className="font-semibold mb-2">Front Desk</p>
-                            <p className="text-gray-600">+1 (555) 123-4567</p>
-                            <p className="text-sm text-gray-500">24/7 Available</p>
+                            <a
+                                href="tel:+923444100702"
+                                className="text-gray-600 hover:text-primary transition-colors"
+                            >
+                                +923444100702
+                            </a>
+                            <p className="text-sm text-gray-500 mt-1">
+                                University of Central Punjab, Lahore
+                            </p>
                         </div>
                         <div>
                             <p className="font-semibold mb-2">Email</p>
-                            <p className="text-gray-600">info@grandhotel.com</p>
-                            <p className="text-sm text-gray-500">Response within 24h</p>
+                            <a
+                                href="mailto:harisautomates@gmail.com"
+                                className="text-gray-600 hover:text-primary transition-colors"
+                            >
+                                harisautomates@gmail.com
+                            </a>
+                            <p className="text-sm text-gray-500 mt-1">Response within 24h</p>
                         </div>
                         <div>
                             <p className="font-semibold mb-2">AI Chat</p>

@@ -7,7 +7,7 @@ export default function Landing() {
     return (
         <div className="min-h-screen">
             {/* Hero Section */}
-            <section className="relative bg-gradient-to-r from-blue-600 to-indigo-700 text-white py-24">
+            <section className="relative bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white py-24">
                 <div className="container mx-auto px-4 text-center">
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
                         Welcome to Grand Hotel
@@ -17,7 +17,7 @@ export default function Landing() {
                         Book rooms, request services, and get instant assistance 24/7.
                     </p>
                     <Link to="/chat">
-                        <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-6">
+                        <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50 text-lg px-8 py-6">
                             <MessageCircle className="mr-2 h-5 w-5" />
                             Start Chat with AI Assistant
                         </Button>
@@ -118,7 +118,7 @@ export default function Landing() {
             </section>
 
             {/* Call to Action */}
-            <section className="py-16 bg-gradient-to-r from-indigo-600 to-blue-600 text-white">
+            <section className="py-16 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white">
                 <div className="container mx-auto px-4 text-center">
                     <h2 className="text-3xl font-bold mb-4">Ready to Experience Luxury?</h2>
                     <p className="text-xl mb-8 text-blue-100">
@@ -126,12 +126,12 @@ export default function Landing() {
                     </p>
                     <div className="flex justify-center space-x-4">
                         <Link to="/chat">
-                            <Button size="lg" className="bg-white text-blue-600 hover:bg-blue-50">
+                            <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50">
                                 Start Chat
                             </Button>
                         </Link>
                         <Link to="/availability">
-                            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-600">
+                            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-950">
                                 View Rooms
                             </Button>
                         </Link>
