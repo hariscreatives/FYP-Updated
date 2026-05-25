@@ -66,5 +66,21 @@
     "phone": "",
     "password": "password123",
     "role": "customer"
+  },
+  {
+    "id": "user-1779735208626",
+    "name": "Ihsan N",
+    "email": "ihsandev@gmail.com",
+    "phone": "+923334567897",
+    "password": "hello123",
+    "role": "customer"
+  },
+  {
+    "id": "user-1779736664363",
+    "name": "Ihsan E",
+    "email": "ihsancode@gmail.com",
+    "phone": "+923334568978",
+    "password": "hello123",
+    "role": "customer"
   }
 ]

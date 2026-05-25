@@ -64,7 +64,7 @@ export default function Help() {
                 <p className="text-gray-600">Find answers to frequently asked questions</p>
             </div>
 
-            <Card className="mb-6">
+            <Card id="contact-info" className="mb-6">
                 <CardHeader className="bg-primary text-primary-foreground">
                     <CardTitle>Need Immediate Assistance?</CardTitle>
                 </CardHeader>
@@ -140,7 +140,7 @@ export default function Help() {
                             Chat with AI
                         </button>
                     </a>
-                    <a href="/complaint">
+                    <a href="#contact-info">
                         <button className="bg-white border border-gray-300 px-6 py-2 rounded-md hover:bg-gray-50 transition-colors">
                             Contact Us
                         </button>

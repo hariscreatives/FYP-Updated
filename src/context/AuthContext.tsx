@@ -51,12 +51,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         try {
             setLoading(true);
             const response = await authAPI.register(userData);
-            if (response.success && response.user) {
-                setUser(response.user);
-                localStorage.setItem('auth-user', JSON.stringify(response.user));
-                if (response.token) {
-                    localStorage.setItem('token', response.token);
-                }
+            if (response.success) {
                 return true;
             }
             return false;

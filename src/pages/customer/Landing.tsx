@@ -8,7 +8,24 @@ export default function Landing() {
     return (
         <div className="min-h-screen">
             {/* Hero Section */}
-            <section className="relative bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white py-24">
+            <section className="relative bg-gradient-to-r from-[#0a192f] via-[#172a45] to-[#0a192f] text-white pt-0 pb-24">
+                {/* Full Width Video Section */}
+                <div className="w-full mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
+                    <div className="relative w-full aspect-[21/9] md:aspect-[25/9] overflow-hidden shadow-2xl bg-blue-950/50">
+                        <video 
+                            className="w-full h-full object-cover block"
+                            controls 
+                            autoPlay 
+                            muted 
+                            loop
+                            /* Using the HotelNewVideo.mp4 from the public directory */
+                            src="/HotelNewVideo.mp4"
+                        >
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                </div>
+
                 <div className="container mx-auto px-4 text-center">
                     {/* Hero Logo */}
                     <div className="flex justify-center mb-8 animate-fade-in">
@@ -22,27 +39,9 @@ export default function Landing() {
                             />
                         </div>
                     </div>
-                    <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
+                    <h1 className="text-5xl md:text-6xl font-bold mb-10 animate-fade-in">
                         Welcome to Grand Hotel
                     </h1>
-                    
-                    {/* Video Section */}
-                    <div className="flex justify-center mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                        <div className="relative w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-4 border-blue-800/30 bg-blue-950/50">
-                            <video 
-                                className="w-full h-auto block"
-                                controls 
-                                autoPlay 
-                                muted 
-                                loop
-                                /* Using the Hotel Tour.mp4 from the public directory */
-                                src="/HotelTour.mp4"
-                            >
-                                Your browser does not support the video tag.
-                            </video>
-                        </div>
-                    </div>
-
                     <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
                         Experience luxury and comfort with our AI-powered concierge service.
                         Book rooms, request services, and get instant assistance 24/7.
@@ -149,7 +148,7 @@ export default function Landing() {
             </section>
 
             {/* Call to Action */}
-            <section className="py-16 bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white">
+            <section className="py-16 bg-gradient-to-r from-[#0a192f] via-[#172a45] to-[#0a192f] text-white">
                 <div className="container mx-auto px-4 text-center">
                     <h2 className="text-3xl font-bold mb-4">Ready to Experience Luxury?</h2>
                     <p className="text-xl mb-8 text-blue-100">

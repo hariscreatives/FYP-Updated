@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import CustomerLayout from '@/layouts/CustomerLayout';
 import DashboardLayout from '@/layouts/DashboardLayout';
+import ScrollToTop from '@/components/ScrollToTop';
 
 const Landing = lazy(() => import('@/pages/customer/Landing'));
 const Chat = lazy(() => import('@/pages/customer/Chat'));
@@ -45,6 +46,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 export default function App() {
     return (
         <Suspense fallback={<PageLoader />}>
+            <ScrollToTop />
             <Routes>
                 {/* Customer Routes */}
                 <Route path="/" element={<CustomerLayout />}>

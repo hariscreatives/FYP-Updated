@@ -25,7 +25,7 @@ export default function Signup() {
         try {
             const success = await register(formData);
             if (success) {
-                navigate('/');
+                navigate('/login');
             } else {
                 setError('Registration failed. Email might already exist.');
             }
