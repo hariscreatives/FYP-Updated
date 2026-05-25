@@ -1,15 +1,14 @@
 import { Link } from 'react-router-dom';
+import { LOGO_NO_BG_SRC } from '@/constants/logos';
 
-export const LOGO_SRC = '/grand-hotel-logo.png';
-
-/** Top-left header logo only — rest of the layout stays unchanged */
+/** Navbar top-left logo — uses the transparent background version */
 export default function Logo() {
     return (
-        <Link to="/" className="inline-flex shrink-0">
+        <Link to="/" className="inline-flex shrink-0 items-center">
             <img
-                src={LOGO_SRC}
+                src={LOGO_NO_BG_SRC}
                 alt="Grand Hotel"
-                className="h-10 w-auto object-contain"
+                className="h-[96px] w-auto object-contain"
             />
         </Link>
     );

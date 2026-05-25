@@ -26,7 +26,7 @@ export default function CustomerLayout() {
         <div className="flex min-h-screen flex-col bg-gradient-to-br from-blue-50 to-indigo-100">
             <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/85 shadow-[0_8px_32px_-8px_rgba(15,23,42,0.12)] backdrop-blur-xl">
                 <div className="container mx-auto px-4">
-                    <div className="flex h-[4.25rem] items-center justify-between">
+                    <div className="flex h-[5.5rem] items-center justify-between">
                         <Logo />
 
                         <nav

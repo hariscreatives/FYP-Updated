@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { MessageCircle, Calendar, FileText, Star, Heart, Phone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { LOGO_SRC } from '@/constants/logos';
 
 export default function Landing() {
     return (
@@ -9,6 +10,18 @@ export default function Landing() {
             {/* Hero Section */}
             <section className="relative bg-gradient-to-r from-blue-950 via-blue-900 to-indigo-950 text-white py-24">
                 <div className="container mx-auto px-4 text-center">
+                    {/* Hero Logo */}
+                    <div className="flex justify-center mb-8 animate-fade-in">
+                        <div className="relative">
+                            <div className="absolute inset-0 rounded-3xl bg-white/10 blur-2xl scale-110" />
+                            <img
+                                src={LOGO_SRC}
+                                alt="Grand Hotel"
+                                className="relative h-20 md:h-28 w-auto object-contain drop-shadow-2xl"
+                                style={{ filter: 'drop-shadow(0 8px 32px rgba(255,255,255,0.25))' }}
+                            />
+                        </div>
+                    </div>
                     <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-fade-in">
                         Welcome to Grand Hotel
                     </h1>

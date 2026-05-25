@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Mail, Phone, MapPin, MessageCircle, Calendar, FileText } from 'lucide-react';
-import { LOGO_SRC } from '@/components/Logo';
+import { LOGO_SRC } from '@/constants/logos';
 import { cn } from '@/lib/utils';
 
 const footerLink =
