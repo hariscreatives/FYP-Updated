@@ -1,6 +1,8 @@
 // In-memory data store for the hotel management system
 // This simulates a database for the demo application
 
+const fs = require('fs');
+const path = require('path');
 const { mockRooms, mockBookings, mockComplaints, mockEmergencies, mockFeedback, mockStaff, mockActivity, mockAnalytics } = require('./mockData');
 
 // Initialize data store
@@ -9,8 +11,35 @@ let bookings = JSON.parse(JSON.stringify(mockBookings));
 let complaints = JSON.parse(JSON.stringify(mockComplaints));
 let emergencies = JSON.parse(JSON.stringify(mockEmergencies));
 let feedback = JSON.parse(JSON.stringify(mockFeedback));
-let staff = JSON.parse(JSON.stringify(mockStaff));
 let activity = JSON.parse(JSON.stringify(mockActivity));
+
+const USERS_FILE = path.join(__dirname, 'users.json');
+let users = [];
+
+// Load users from file or mock data
+try {
+    if (fs.existsSync(USERS_FILE)) {
+        users = JSON.parse(fs.readFileSync(USERS_FILE, 'utf8'));
+    } else {
+        // Initialize with mockStaff but add password field for login
+        users = JSON.parse(JSON.stringify(mockStaff)).map(s => ({
+            ...s,
+            password: s.role === 'Admin' ? 'admin123' : 'staff123'
+        }));
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    }
+} catch (error) {
+    console.error('Error loading users:', error);
+    users = [];
+}
+
+const saveUsers = () => {
+    try {
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+    } catch (error) {
+        console.error('Error saving users:', error);
+    }
+};
 
 // Room operations
 const getRooms = () => rooms;
@@ -106,29 +135,40 @@ const addFeedback = (fb) => {
     return fb;
 };
 
-// Staff operations
-const getStaff = () => staff;
-const getStaffById = (id) => staff.find(s => s.id === id);
-const addStaff = (member) => {
-    staff.push(member);
-    return member;
+// User operations (replaces Staff operations)
+const getUsers = () => users;
+const getUserById = (id) => users.find(u => u.id === id);
+const getUserByEmail = (email) => users.find(u => u.email === email);
+const addUser = (user) => {
+    users.push(user);
+    saveUsers();
+    return user;
 };
-const updateStaff = (id, updates) => {
-    const index = staff.findIndex(s => s.id === id);
+const updateUser = (id, updates) => {
+    const index = users.findIndex(u => u.id === id);
     if (index !== -1) {
-        staff[index] = { ...staff[index], ...updates };
-        return staff[index];
+        users[index] = { ...users[index], ...updates };
+        saveUsers();
+        return users[index];
     }
     return null;
 };
-const deleteStaff = (id) => {
-    const index = staff.findIndex(s => s.id === id);
+const deleteUser = (id) => {
+    const index = users.findIndex(u => u.id === id);
     if (index !== -1) {
-        staff.splice(index, 1);
+        users.splice(index, 1);
+        saveUsers();
         return true;
     }
     return false;
 };
+
+// Aliases for staff routes backward compatibility
+const getStaff = () => users.filter(u => u.role === 'Staff' || u.role === 'Admin');
+const getStaffById = getUserById;
+const addStaff = addUser;
+const updateStaff = updateUser;
+const deleteStaff = deleteUser;
 
 // Activity operations
 const getActivity = () => activity;
@@ -204,7 +244,15 @@ module.exports = {
     getFeedback,
     addFeedback,
     
-    // Staff
+    // Users
+    getUsers,
+    getUserById,
+    getUserByEmail,
+    addUser,
+    updateUser,
+    deleteUser,
+    
+    // Staff (Aliases)
     getStaff,
     getStaffById,
     addStaff,

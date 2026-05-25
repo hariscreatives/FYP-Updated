@@ -13,6 +13,8 @@ const Complaint = lazy(() => import('@/pages/customer/Complaint'));
 const Emergency = lazy(() => import('@/pages/customer/Emergency'));
 const Feedback = lazy(() => import('@/pages/customer/Feedback'));
 const Help = lazy(() => import('@/pages/customer/Help'));
+const CustomerLogin = lazy(() => import('@/pages/customer/Login'));
+const CustomerSignup = lazy(() => import('@/pages/customer/Signup'));
 
 const Login = lazy(() => import('@/pages/staff/Login'));
 const Dashboard = lazy(() => import('@/pages/staff/Dashboard'));
@@ -55,6 +57,8 @@ export default function App() {
                     <Route path="emergency" element={<Emergency />} />
                     <Route path="feedback" element={<Feedback />} />
                     <Route path="help" element={<Help />} />
+                    <Route path="login" element={<CustomerLogin />} />
+                    <Route path="signup" element={<CustomerSignup />} />
                 </Route>
 
                 {/* Staff Login */}

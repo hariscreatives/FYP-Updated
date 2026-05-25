@@ -104,10 +104,22 @@ export const authAPI = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
     }),
+    register: (userData: any) => fetchAPI('/auth/register', {
+        method: 'POST',
+        body: JSON.stringify(userData),
+    }),
     verify: () => fetchAPI('/auth/verify', {
         headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`,
         },
+    }),
+};
+
+// Users API
+export const usersAPI = {
+    getAll: () => fetchAPI('/users'),
+    delete: (id: string) => fetchAPI(`/users/${id}`, {
+        method: 'DELETE',
     }),
 };
 

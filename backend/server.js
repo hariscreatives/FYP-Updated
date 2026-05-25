@@ -18,6 +18,7 @@ const feedbackRoutes = require('./routes/feedback');
 const staffRoutes = require('./routes/staff');
 const authRoutes = require('./routes/auth');
 const analyticsRoutes = require('./routes/analytics');
+const usersRoutes = require('./routes/users');
 
 // API Routes
 app.use('/api/rooms', roomsRoutes);
@@ -28,6 +29,7 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/staff', staffRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/users', usersRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

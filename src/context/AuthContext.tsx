@@ -11,6 +11,7 @@ interface AuthUser {
 interface AuthContextType {
     user: AuthUser | null;
     login: (email: string, password: string) => Promise<boolean>;
+    register: (userData: any) => Promise<boolean>;
     logout: () => void;
     isAuthenticated: boolean;
     loading: boolean;
@@ -46,6 +47,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const register = async (userData: any): Promise<boolean> => {
+        try {
+            setLoading(true);
+            const response = await authAPI.register(userData);
+            if (response.success && response.user) {
+                setUser(response.user);
+                localStorage.setItem('auth-user', JSON.stringify(response.user));
+                if (response.token) {
+                    localStorage.setItem('token', response.token);
+                }
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error('Registration failed:', error);
+            return false;
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const logout = () => {
         setUser(null);
         localStorage.removeItem('auth-user');
@@ -53,7 +75,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user, loading }}>
+        <AuthContext.Provider value={{ user, isAuthenticated: !!user, loading, login, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

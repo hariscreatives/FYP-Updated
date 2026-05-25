@@ -1,119 +1,152 @@
-import { useData } from '@/context/DataContext';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, AlertCircle, FileText, TrendingUp } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { mockActivity } from '@/data/mockData';
-import { formatDateTime } from '@/lib/utils';
+import { Users, User as UserIcon, ShieldAlert, Shield } from 'lucide-react';
+import { usersAPI } from '@/lib/api';
 
 export default function Dashboard() {
-    const { bookings, complaints, emergencies } = useData();
+    const [users, setUsers] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
-    const todayBookings = bookings.filter((b) => {
-        const checkIn = new Date(b.checkIn);
-        const today = new Date();
-        return (
-            checkIn.toDateString() === today.toDateString() ||
-            b.createdAt.split('T')[0] === today.toISOString().split('T')[0]
-        );
-    }).length;
+    useEffect(() => {
+        fetchUsers();
+    }, []);
 
-    const activeEmergencies = emergencies.filter((e) => e.status !== 'Resolved').length;
-    const newComplaints = complaints.filter((c) => c.status === 'New').length;
-    const confirmedBookings = bookings.filter((b) => b.status === 'Confirmed').length;
+    const fetchUsers = async () => {
+        try {
+            setLoading(true);
+            const data = await usersAPI.getAll();
+            setUsers(data);
+        } catch (error) {
+            console.error("Failed to fetch users", error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (window.confirm('Are you sure you want to delete this user?')) {
+            try {
+                await usersAPI.delete(id);
+                setUsers(users.filter(u => u.id !== id));
+            } catch (error) {
+                console.error("Failed to delete user", error);
+                alert("Failed to delete user.");
+            }
+        }
+    };
+
+    const totalUsers = users.length;
+    const customersCount = users.filter(u => u.role === 'customer').length;
+    const staffAdminCount = users.filter(u => u.role === 'admin' || u.role === 'staff').length;
 
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold text-gray-900">Dashboard Overview</h1>
-                <p className="text-gray-600">Welcome back! Here's what's happening today.</p>
+                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                    <Shield className="h-7 w-7 text-primary" />
+                    Admin Panel
+                </h1>
+                <p className="text-gray-500 font-medium">Manage users and system data</p>
             </div>
 
             {/* KPI Cards */}
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <Card>
+            <div className="grid md:grid-cols-3 gap-6">
+                <Card className="border-slate-200 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-gray-600">
-                            Today's Bookings
+                        <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
+                            Total Users
                         </CardTitle>
-                        <Calendar className="h-4 w-4 text-blue-600" />
+                        <Users className="h-5 w-5 text-slate-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold">{todayBookings}</div>
-                        <p className="text-xs text-gray-500 mt-1">New reservations today</p>
+                        <div className="text-4xl font-bold text-slate-800">{totalUsers}</div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-red-200 bg-red-50">
+                <Card className="border-slate-200 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-red-900">
-                            Active Emergencies
+                        <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
+                            Customers
                         </CardTitle>
-                        <AlertCircle className="h-4 w-4 text-red-600" />
+                        <UserIcon className="h-5 w-5 text-slate-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-red-700">{activeEmergencies}</div>
-                        <p className="text-xs text-red-600 mt-1">Require immediate attention</p>
+                        <div className="text-4xl font-bold text-blue-600">{customersCount}</div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-yellow-200 bg-yellow-50">
+                <Card className="border-slate-200 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-yellow-900">
-                            New Complaints
+                        <CardTitle className="text-sm font-semibold text-slate-600 uppercase tracking-wider">
+                            Staff / Admin
                         </CardTitle>
-                        <FileText className="h-4 w-4 text-yellow-600" />
+                        <ShieldAlert className="h-5 w-5 text-slate-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-yellow-700">{newComplaints}</div>
-                        <p className="text-xs text-yellow-600 mt-1">Awaiting review</p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-green-200 bg-green-50">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium text-green-900">
-                            Confirmed Bookings
-                        </CardTitle>
-                        <TrendingUp className="h-4 w-4 text-green-600" />
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-3xl font-bold text-green-700">{confirmedBookings}</div>
-                        <p className="text-xs text-green-600 mt-1">Total confirmed</p>
+                        <div className="text-4xl font-bold text-green-600">{staffAdminCount}</div>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Recent Activity */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+            {/* Registered Users Table */}
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="border-b border-slate-100 pb-4 bg-slate-50/50">
+                    <CardTitle className="text-lg font-semibold text-slate-800">Registered Users</CardTitle>
                 </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
-                        {mockActivity.slice(0, 10).map((activity) => (
-                            <div key={activity.id} className="flex items-start justify-between border-b pb-3 last:border-0">
-                                <div className="flex-1">
-                                    <p className="text-sm font-medium text-gray-900">{activity.description}</p>
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        {formatDateTime(activity.timestamp)}
-                                    </p>
-                                </div>
-                                {activity.status && (
-                                    <Badge
-                                        variant={
-                                            activity.status === 'Confirmed' || activity.status === 'Resolved'
-                                                ? 'success'
-                                                : activity.status === 'New'
-                                                    ? 'destructive'
-                                                    : 'warning'
-                                        }
-                                        className="ml-3"
-                                    >
-                                        {activity.status}
-                                    </Badge>
+                <CardContent className="p-0">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left whitespace-nowrap">
+                            <thead className="text-xs text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                    <th className="px-6 py-4 font-semibold">Name</th>
+                                    <th className="px-6 py-4 font-semibold">Email</th>
+                                    <th className="px-6 py-4 font-semibold">Username</th>
+                                    <th className="px-6 py-4 font-semibold">Role</th>
+                                    <th className="px-6 py-4 font-semibold text-right">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {users.map((user) => (
+                                    <tr key={user.id} className="hover:bg-slate-50/80 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-slate-900">{user.name}</td>
+                                        <td className="px-6 py-4 text-slate-600">{user.email}</td>
+                                        <td className="px-6 py-4 text-slate-600">{user.username || '-'}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold capitalize
+                                                ${user.role.toLowerCase() === 'admin' 
+                                                    ? 'bg-blue-100 text-blue-700' 
+                                                    : user.role.toLowerCase() === 'staff'
+                                                        ? 'bg-indigo-100 text-indigo-700'
+                                                        : 'bg-green-100 text-green-700'}`}>
+                                                {user.role}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button 
+                                                onClick={() => handleDelete(user.id)}
+                                                className="text-red-500 hover:text-red-700 font-semibold transition-colors text-sm px-2 py-1 rounded hover:bg-red-50"
+                                            >
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {users.length === 0 && !loading && (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                                            No users found.
+                                        </td>
+                                    </tr>
                                 )}
-                            </div>
-                        ))}
+                                {loading && (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
+                                            Loading users...
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </CardContent>
             </Card>

@@ -34,8 +34,8 @@ export default function Login() {
             <div className="flex flex-1 items-center justify-center p-4">
             <div className="w-full max-w-md">
                 <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4">
-                        <Hotel className="h-10 w-10 text-primary" />
+                    <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full mb-4 overflow-hidden shadow-sm">
+                        <img src="/grand-hotel-logo.png" alt="Grand Hotel Logo" className="h-12 w-12 object-contain" />
                     </div>
                     <h1 className="text-3xl font-bold text-white mb-2">Grand Hotel</h1>
                     <p className="text-blue-100">Staff Management Portal</p>

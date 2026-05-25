@@ -60,6 +60,21 @@ export default function CustomerLayout() {
                                 </span>
                                 <span>Emergency</span>
                             </NavLink>
+                            
+                            <div className="ml-2 flex items-center gap-2 border-l border-slate-200/80 pl-4">
+                                <NavLink
+                                    to="/login"
+                                    className="rounded-full px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:text-blue-700"
+                                >
+                                    Sign In
+                                </NavLink>
+                                <NavLink
+                                    to="/signup"
+                                    className="rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800 hover:shadow-md"
+                                >
+                                    Sign Up
+                                </NavLink>
+                            </div>
                         </nav>
 
                         <button
@@ -112,6 +127,22 @@ export default function CustomerLayout() {
                                     <Phone className="h-4 w-4 shrink-0 stroke-[2]" />
                                     <span>Emergency</span>
                                 </NavLink>
+                                <div className="mt-2 flex flex-col gap-2 border-t border-slate-200/80 pt-2">
+                                    <NavLink
+                                        to="/login"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="rounded-xl px-4 py-3 text-center text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+                                    >
+                                        Sign In
+                                    </NavLink>
+                                    <NavLink
+                                        to="/signup"
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className="rounded-xl bg-slate-900 px-4 py-3 text-center text-sm font-semibold text-white shadow-sm transition-all hover:bg-slate-800"
+                                    >
+                                        Sign Up
+                                    </NavLink>
+                                </div>
                             </div>
                         </nav>
                     )}
