@@ -2,12 +2,20 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, rooms, bookings, complaints, emergencies, feedback, staff, users, analytics
+from data.database import init_db
+from data.seed import seed_db
 
 app = FastAPI(
     title="Grand Hotel Management API",
     description="AI-Powered Multi-Agent System for Automated Booking and Management",
     version="1.0.0",
 )
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+    seed_db()
+
 
 # ---------------------------------------------------------------------------
 # CORS – allow all origins (matches existing Node.js behaviour)

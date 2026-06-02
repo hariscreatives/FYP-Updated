@@ -1,0 +1,115 @@
+{
+  "project_name": "AI-Powered Multi-Agent Hotel Management System",
+  "version": "1.0.0",
+  "academic_context": "Final Year Project (FYP)",
+  "year": 2026,
+  "architecture": {
+    "pattern": "Client-Server (Two-Tier)",
+    "communication": "REST API (JSON over HTTP) with client-side rewrites"
+  },
+  "frontend": {
+    "framework": "Next.js 14",
+    "language": "TypeScript",
+    "styling": "Tailwind CSS",
+    "state_management": "React Context API (AuthContext, DataContext)",
+    "routing": "Next.js App Router",
+    "charting_library": "Recharts",
+    "icons_library": "Lucide React",
+    "ui_components": "shadcn/ui inspired components",
+    "directory_structure": {
+      "src/app": "Application routes & pages",
+      "src/components": "Reusable UI components",
+      "src/components/ui": "Base design system components",
+      "src/context": "Authentication and Data context providers",
+      "src/layouts": "Client/Admin page wrapper templates",
+      "src/lib": "Utility files (API client, Tailwind merge utilities)",
+      "src/types": "TypeScript structural type declarations"
+    },
+    "client_routes": {
+      "customer": [
+        { "path": "/", "description": "Landing Page" },
+        { "path": "/chat", "description": "AI Concierge Chat Interface" },
+        { "path": "/availability", "description": "Room Search & Booking" },
+        { "path": "/booking", "description": "Booking Registration Form" },
+        { "path": "/booking-confirmation/:id", "description": "Booking Confirmation Status" },
+        { "path": "/complaint", "description": "File Customer Complaint" },
+        { "path": "/emergency", "description": "Report Urgent Emergency" },
+        { "path": "/feedback", "description": "Leave Guest Rating/Feedback" },
+        { "path": "/help", "description": "FAQ & Help Center Accordion" }
+      ],
+      "staff": [
+        { "path": "/staff/login", "description": "Staff Portal Login Screen" },
+        { "path": "/staff/dashboard", "description": "Dashboard Homepage (KPIs & Activity Feed)" },
+        { "path": "/staff/bookings", "description": "Manage Customer Bookings" },
+        { "path": "/staff/bookings/:id", "description": "Booking Detail View" },
+        { "path": "/staff/availability", "description": "Room Status & Occupancy Calendar Grid" },
+        { "path": "/staff/complaints", "description": "Track Customer Complaints Queue" },
+        { "path": "/staff/complaints/:id", "description": "Complaint Assignment & Resolution Detail" },
+        { "path": "/staff/emergencies", "description": "List Reported Emergencies" },
+        { "path": "/staff/emergencies/:id", "description": "Emergency Details & Staff Dispatcher" },
+        { "path": "/staff/staff-management", "description": "Add, Edit, Remove Staff Accounts" },
+        { "path": "/staff/analytics", "description": "Revenue, Booking trends, Complaints charts" },
+        { "path": "/staff/settings", "description": "Dashboard Configurations" }
+      ]
+    }
+  },
+  "backend": {
+    "framework": "FastAPI",
+    "language": "Python",
+    "server": "Uvicorn (Running on port 3001)",
+    "database": {
+      "type": "PostgreSQL (Persistent relational database)",
+      "orm": "SQLModel / SQLAlchemy"
+    },
+    "directory_structure": {
+      "backend/main.py": "API Entrypoint",
+      "backend/requirements.txt": "Python dependencies definition",
+      "backend/data": "Mock data seeds and persistence storage scripts",
+      "backend/routers": "API route handlers split by resource"
+    },
+    "api_endpoints": [
+      { "method": "GET", "path": "/api/health", "description": "API status health check" },
+      { "method": "POST", "path": "/api/auth/login", "description": "User login session start" },
+      { "method": "POST", "path": "/api/auth/register", "description": "Customer sign up registration" },
+      { "method": "GET", "path": "/api/auth/verify", "description": "Validate auth bearer token" },
+      { "method": "GET", "path": "/api/rooms", "description": "Get list of all rooms" },
+      { "method": "GET", "path": "/api/rooms/{id}", "description": "Fetch single room details" },
+      { "method": "PATCH", "path": "/api/rooms/{id}", "description": "Modify room details or availability status" },
+      { "method": "GET", "path": "/api/bookings", "description": "Get all bookings" },
+      { "method": "GET", "path": "/api/bookings/{id}", "description": "Fetch booking by ID" },
+      { "method": "POST", "path": "/api/bookings", "description": "Submit a new room booking" },
+      { "method": "PATCH", "path": "/api/bookings/{id}", "description": "Cancel or update booking state" },
+      { "method": "GET", "path": "/api/complaints", "description": "List all complaints" },
+      { "method": "POST", "path": "/api/complaints", "description": "Submit a new customer complaint" },
+      { "method": "PATCH", "path": "/api/complaints/{id}", "description": "Update complaint status and assigned staff" },
+      { "method": "GET", "path": "/api/emergencies", "description": "List all reported emergencies" },
+      { "method": "POST", "path": "/api/emergencies", "description": "Report a new emergency" },
+      { "method": "PATCH", "path": "/api/emergencies/{id}", "description": "Update emergency response level and state" },
+      { "method": "GET", "path": "/api/feedback", "description": "Retrieve guest reviews/ratings" },
+      { "method": "POST", "path": "/api/feedback", "description": "Add new guest feedback" },
+      { "method": "GET", "path": "/api/staff", "description": "Get all hotel staff profiles" },
+      { "method": "POST", "path": "/api/staff", "description": "Register a new staff member profile" },
+      { "method": "PATCH", "path": "/api/staff/{id}", "description": "Update staff department or info" },
+      { "method": "DELETE", "path": "/api/staff/{id}", "description": "Remove staff account" },
+      { "method": "GET", "path": "/api/users", "description": "Admin access list of all users" },
+      { "method": "DELETE", "path": "/api/users/{id}", "description": "Delete user profile" },
+      { "method": "GET", "path": "/api/analytics", "description": "Fetch dashboard charts metrics" },
+      { "method": "GET", "path": "/api/analytics/activity", "description": "Fetch staff and booking audit feeds" }
+    ]
+  },
+  "workflow_states": {
+    "booking": ["Pending", "Confirmed", "Cancelled", "Completed"],
+    "complaint": ["New", "In Progress", "Resolved"],
+    "emergency": ["New", "Acknowledged", "Resolved"]
+  },
+  "demo_credentials": {
+    "admin": {
+      "email": "admin@grandhotel.com",
+      "password": "admin123"
+    },
+    "staff": {
+      "email": "alice@grandhotel.com",
+      "password": "staff123"
+    }
+  }
+}

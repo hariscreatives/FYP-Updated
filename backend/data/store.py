@@ -1,157 +1,288 @@
 """
-In-memory data store — Python translation of data/store.js.
-Users are persisted to data/users.json on every write.
+PostgreSQL data store using SQLModel.
 """
 
 import copy
 import json
 import os
 from datetime import datetime, timezone
+from sqlmodel import Session, select
 
-from data.mock_data import (
-    mock_activity, mock_analytics, mock_bookings, mock_complaints,
-    mock_emergencies, mock_feedback, mock_rooms, mock_staff,
-)
+from data.database import engine
+from data.models import User, Room, Booking, Complaint, Emergency, Feedback, Activity
+from data.mock_data import mock_analytics
 
-rooms:       list = copy.deepcopy(mock_rooms)
-bookings:    list = copy.deepcopy(mock_bookings)
-complaints:  list = copy.deepcopy(mock_complaints)
-emergencies: list = copy.deepcopy(mock_emergencies)
-feedback:    list = copy.deepcopy(mock_feedback)
-activity:    list = copy.deepcopy(mock_activity)
-
-_USERS_FILE = os.path.join(os.path.dirname(__file__), "users.json")
-users: list = []
-
-try:
-    if os.path.exists(_USERS_FILE):
-        with open(_USERS_FILE, "r", encoding="utf-8") as f:
-            users = json.load(f)
-    else:
-        users = [
-            {**s, "password": "admin123" if s["role"] == "Admin" else "staff123"}
-            for s in copy.deepcopy(mock_staff)
-        ]
-        with open(_USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, indent=2)
-except Exception as exc:
-    print(f"Error loading users: {exc}")
-    users = []
-
-
-def _save_users():
-    try:
-        with open(_USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, indent=2)
-    except Exception as exc:
-        print(f"Error saving users: {exc}")
-
+def _to_dict(model_instance):
+    if model_instance is None:
+        return None
+    return model_instance.dict()
 
 def _now_iso(): return datetime.now(tz=timezone.utc).isoformat()
 def _now_ms():  return int(datetime.now(tz=timezone.utc).timestamp() * 1000)
 
 # Rooms
-def get_rooms(): return rooms
-def get_room_by_id(room_id): return next((r for r in rooms if r["id"] == room_id), None)
+def get_rooms():
+    with Session(engine) as session:
+        return [_to_dict(r) for r in session.exec(select(Room)).all()]
+
+def get_room_by_id(room_id):
+    with Session(engine) as session:
+        return _to_dict(session.get(Room, room_id))
+
 def update_room(room_id, updates):
-    for i, r in enumerate(rooms):
-        if r["id"] == room_id:
-            rooms[i] = {**r, **updates}
-            return rooms[i]
-    return None
+    with Session(engine) as session:
+        room = session.get(Room, room_id)
+        if not room:
+            return None
+        for k, v in updates.items():
+            setattr(room, k, v)
+        session.add(room)
+        session.commit()
+        session.refresh(room)
+        return _to_dict(room)
 
 # Bookings
-def get_bookings(): return bookings
-def get_booking_by_id(bid): return next((b for b in bookings if b["id"] == bid), None)
+def get_bookings():
+    with Session(engine) as session:
+        return [_to_dict(b) for b in session.exec(select(Booking)).all()]
+
+def get_booking_by_id(bid):
+    with Session(engine) as session:
+        return _to_dict(session.get(Booking, bid))
+
 def add_booking(booking):
-    bookings.append(booking)
+    if "id" not in booking:
+        booking["id"] = f"BK-{_now_ms()}"
+    
+    # Ensure properties that might not be in dict are handled
+    db_booking = Booking(**booking)
+    with Session(engine) as session:
+        session.add(db_booking)
+        session.commit()
+        session.refresh(db_booking)
+    
     room = get_room_by_id(booking.get("roomId", ""))
-    if room: update_room(booking["roomId"], {"available": False})
-    add_activity({"id": f"act-{_now_ms()}", "type": "booking", "description": f"New booking by {booking.get('guestName')} for Room {booking.get('roomNumber')}", "timestamp": _now_iso(), "status": booking.get("status")})
-    return booking
+    if room:
+        update_room(booking["roomId"], {"available": False})
+        
+    add_activity({
+        "id": f"act-{_now_ms()}",
+        "type": "booking",
+        "description": f"New booking by {booking.get('guestName')} for Room {booking.get('roomNumber')}",
+        "timestamp": _now_iso(),
+        "status": booking.get("status")
+    })
+    return _to_dict(db_booking)
+
 def update_booking(bid, updates):
-    for i, b in enumerate(bookings):
-        if b["id"] == bid:
-            bookings[i] = {**b, **updates}
-            return bookings[i]
-    return None
+    with Session(engine) as session:
+        booking = session.get(Booking, bid)
+        if not booking:
+            return None
+        for k, v in updates.items():
+            setattr(booking, k, v)
+        session.add(booking)
+        session.commit()
+        session.refresh(booking)
+        return _to_dict(booking)
 
 # Complaints
-def get_complaints(): return complaints
-def get_complaint_by_id(cid): return next((c for c in complaints if c["id"] == cid), None)
+def get_complaints():
+    with Session(engine) as session:
+        return [_to_dict(c) for c in session.exec(select(Complaint)).all()]
+
+def get_complaint_by_id(cid):
+    with Session(engine) as session:
+        return _to_dict(session.get(Complaint, cid))
+
 def add_complaint(complaint):
-    complaints.append(complaint)
-    add_activity({"id": f"act-{_now_ms()}", "type": "complaint", "description": f"New complaint: {complaint.get('category')} - {str(complaint.get('description',''))[:50]}", "timestamp": _now_iso(), "status": complaint.get("status")})
-    return complaint
+    if "id" not in complaint:
+        complaint["id"] = f"CMP-{_now_ms()}"
+    db_complaint = Complaint(**complaint)
+    with Session(engine) as session:
+        session.add(db_complaint)
+        session.commit()
+        session.refresh(db_complaint)
+    
+    add_activity({
+        "id": f"act-{_now_ms()}",
+        "type": "complaint",
+        "description": f"New complaint: {complaint.get('category')} - {str(complaint.get('description',''))[:50]}",
+        "timestamp": _now_iso(),
+        "status": complaint.get("status")
+    })
+    return _to_dict(db_complaint)
+
 def update_complaint(cid, updates):
-    for i, c in enumerate(complaints):
-        if c["id"] == cid:
-            complaints[i] = {**c, **updates}
-            return complaints[i]
-    return None
+    with Session(engine) as session:
+        complaint = session.get(Complaint, cid)
+        if not complaint:
+            return None
+        for k, v in updates.items():
+            setattr(complaint, k, v)
+        session.add(complaint)
+        session.commit()
+        session.refresh(complaint)
+        return _to_dict(complaint)
 
 # Emergencies
-def get_emergencies(): return emergencies
-def get_emergency_by_id(eid): return next((e for e in emergencies if e["id"] == eid), None)
+def get_emergencies():
+    with Session(engine) as session:
+        return [_to_dict(e) for e in session.exec(select(Emergency)).all()]
+
+def get_emergency_by_id(eid):
+    with Session(engine) as session:
+        return _to_dict(session.get(Emergency, eid))
+
 def add_emergency(emergency):
-    emergencies.append(emergency)
-    add_activity({"id": f"act-{_now_ms()}", "type": "emergency", "description": f"{emergency.get('type')} emergency: {emergency.get('description')}", "timestamp": _now_iso(), "status": emergency.get("status")})
-    return emergency
+    if "id" not in emergency:
+        emergency["id"] = f"EMG-{_now_ms()}"
+    db_emergency = Emergency(**emergency)
+    with Session(engine) as session:
+        session.add(db_emergency)
+        session.commit()
+        session.refresh(db_emergency)
+    
+    add_activity({
+        "id": f"act-{_now_ms()}",
+        "type": "emergency",
+        "description": f"{emergency.get('type')} emergency: {emergency.get('description')}",
+        "timestamp": _now_iso(),
+        "status": emergency.get("status")
+    })
+    return _to_dict(db_emergency)
+
 def update_emergency(eid, updates):
-    for i, e in enumerate(emergencies):
-        if e["id"] == eid:
-            emergencies[i] = {**e, **updates}
-            return emergencies[i]
-    return None
+    with Session(engine) as session:
+        emergency = session.get(Emergency, eid)
+        if not emergency:
+            return None
+        for k, v in updates.items():
+            setattr(emergency, k, v)
+        session.add(emergency)
+        session.commit()
+        session.refresh(emergency)
+        return _to_dict(emergency)
 
 # Feedback
-def get_feedback(): return feedback
+def get_feedback():
+    with Session(engine) as session:
+        return [_to_dict(f) for f in session.exec(select(Feedback)).all()]
+
 def add_feedback(fb):
-    feedback.append(fb)
-    return fb
+    if "id" not in fb:
+        fb["id"] = f"FB-{_now_ms()}"
+    db_feedback = Feedback(**fb)
+    with Session(engine) as session:
+        session.add(db_feedback)
+        session.commit()
+        session.refresh(db_feedback)
+    return _to_dict(db_feedback)
 
 # Users
-def get_users(): return users
-def get_user_by_id(uid): return next((u for u in users if u["id"] == uid), None)
-def get_user_by_email(email): return next((u for u in users if u["email"] == email), None)
+def get_users():
+    with Session(engine) as session:
+        return [_to_dict(u) for u in session.exec(select(User)).all()]
+
+def get_user_by_id(uid):
+    with Session(engine) as session:
+        return _to_dict(session.get(User, uid))
+
+def get_user_by_email(email):
+    with Session(engine) as session:
+        return _to_dict(session.exec(select(User).where(User.email == email)).first())
+
 def add_user(user):
-    users.append(user); _save_users(); return user
+    if "id" not in user:
+        user["id"] = f"user-{_now_ms()}"
+    db_user = User(**user)
+    with Session(engine) as session:
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+    return _to_dict(db_user)
+
 def update_user(uid, updates):
-    for i, u in enumerate(users):
-        if u["id"] == uid:
-            users[i] = {**u, **updates}; _save_users(); return users[i]
-    return None
+    with Session(engine) as session:
+        user = session.get(User, uid)
+        if not user:
+            return None
+        for k, v in updates.items():
+            setattr(user, k, v)
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return _to_dict(user)
+
 def delete_user(uid):
-    for i, u in enumerate(users):
-        if u["id"] == uid:
-            users.pop(i); _save_users(); return True
-    return False
+    with Session(engine) as session:
+        user = session.get(User, uid)
+        if not user:
+            return False
+        session.delete(user)
+        session.commit()
+        return True
 
 # Staff aliases
-def get_staff(): return [u for u in users if u.get("role") in ("Staff", "Admin")]
+def get_staff():
+    with Session(engine) as session:
+        staff_members = session.exec(select(User).where(User.role.in_(["Staff", "Admin"]))).all()
+        return [_to_dict(s) for s in staff_members]
+
 get_staff_by_id = get_user_by_id
 add_staff    = add_user
 update_staff = update_user
 delete_staff = delete_user
 
 # Activity
-def get_activity(): return activity
+def get_activity():
+    with Session(engine) as session:
+        return [_to_dict(a) for a in session.exec(select(Activity).order_by(Activity.timestamp.desc())).all()]
+
 def add_activity(item):
-    activity.insert(0, item)
-    if len(activity) > 100: activity[:] = activity[:100]
-    return item
+    if "id" not in item:
+        item["id"] = f"act-{_now_ms()}"
+    db_activity = Activity(**item)
+    with Session(engine) as session:
+        session.add(db_activity)
+        session.commit()
+        session.refresh(db_activity)
+    return _to_dict(db_activity)
 
 # Analytics
 def get_analytics():
     now = datetime.now(tz=timezone.utc)
+    
+    with Session(engine) as session:
+        complaints = session.exec(select(Complaint)).all()
+        emergencies = session.exec(select(Emergency)).all()
+        rooms = session.exec(select(Room)).all()
+        bookings = session.exec(select(Booking)).all()
+        feedback = session.exec(select(Feedback)).all()
+        
     complaints_counts = [
-        {"status": "New",         "count": sum(1 for c in complaints if c["status"] == "New")},
-        {"status": "In Progress", "count": sum(1 for c in complaints if c["status"] == "In Progress")},
-        {"status": "Resolved",    "count": sum(1 for c in complaints if c["status"] == "Resolved")},
+        {"status": "New",         "count": sum(1 for c in complaints if c.status == "New")},
+        {"status": "In Progress", "count": sum(1 for c in complaints if c.status == "In Progress")},
+        {"status": "Resolved",    "count": sum(1 for c in complaints if c.status == "Resolved")},
     ]
-    emergency_counts = [{"type": t, "count": sum(1 for e in emergencies if e["type"] == t)} for t in ("Medical", "Fire", "Security", "Other")]
+    emergency_counts = [{"type": t, "count": sum(1 for e in emergencies if e.type == t)} for t in ("Medical", "Fire", "Security", "Other")]
     total_rooms  = len(rooms)
-    booked_rooms = sum(1 for b in bookings if b["status"] == "Confirmed" and datetime.fromisoformat(b["checkOut"]).replace(tzinfo=timezone.utc) > now)
+    
+    booked_rooms = 0
+    for b in bookings:
+        try:
+            if b.status == "Confirmed" and datetime.fromisoformat(b.checkOut).replace(tzinfo=timezone.utc) > now:
+                booked_rooms += 1
+        except Exception:
+            pass
+            
     occupancy_rate = round((booked_rooms / total_rooms) * 100, 1) if total_rooms else 0
-    avg_rating = round(sum(f["rating"] for f in feedback) / len(feedback), 1) if feedback else mock_analytics["avgRating"]
-    return {"bookingsByMonth": mock_analytics["bookingsByMonth"], "complaintsCounts": complaints_counts, "emergencyCounts": emergency_counts, "occupancyRate": occupancy_rate, "avgRating": avg_rating}
+    avg_rating = round(sum(f.rating for f in feedback) / len(feedback), 1) if feedback else mock_analytics["avgRating"]
+    
+    return {
+        "bookingsByMonth": mock_analytics["bookingsByMonth"],
+        "complaintsCounts": complaints_counts,
+        "emergencyCounts": emergency_counts,
+        "occupancyRate": occupancy_rate,
+        "avgRating": avg_rating
+    }

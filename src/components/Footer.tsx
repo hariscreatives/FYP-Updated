@@ -1,7 +1,10 @@
+'use client';
+
 import Link from 'next/link';
 import { Mail, Phone, MapPin, MessageCircle, Calendar, FileText } from 'lucide-react';
 import { LOGO_SRC } from '@/constants/logos';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
 
 const footerLink =
     'text-slate-300 transition-colors duration-200 hover:text-white';
@@ -14,6 +17,7 @@ const iconBadge = cn(
 
 export default function Footer() {
     const currentYear = new Date().getFullYear();
+    const { user } = useAuth();
 
     return (
         <footer className="mt-auto border-t border-blue-900/40 bg-gradient-to-br from-slate-950 via-blue-950 to-indigo-950 text-slate-300 font-sans">
@@ -155,9 +159,11 @@ export default function Footer() {
                         <Link href="/help" className={footerLink}>
                             Terms of Service
                         </Link>
-                        <Link href="/staff/login" className={footerLink}>
-                            Staff Login
-                        </Link>
+                        {(!user || user.role !== 'customer') && (
+                            <Link href="/staff/login" className={footerLink}>
+                                Staff Login
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>
