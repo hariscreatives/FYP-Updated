@@ -166,7 +166,6 @@ const seedAuthUsers = async () => {
     localStorage.setItem('auth_seeded', 'true');
     console.log('Firebase Authentication seeding complete.');
 };
-
 const seedFirestoreIfEmpty = async () => {
     if (!isFirebaseConfigured || !db || hasSeededFirestore) return;
     
@@ -207,7 +206,6 @@ const seedFirestoreIfEmpty = async () => {
             // Also trigger auth seeding
             await seedAuthUsers();
         }
-        
         hasSeededFirestore = true;
     } catch (e) {
         console.error('Failed to check/seed Firestore:', e);
