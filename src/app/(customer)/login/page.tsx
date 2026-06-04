@@ -25,12 +25,12 @@ function LoginContent() {
         setError('');
         
         try {
-            const success = await login(formData.email, formData.password);
+            const success = await login(formData.email, formData.password, 'customer');
             if (success) {
                 const from = searchParams.get('from') || '/';
                 router.replace(from);
             } else {
-                setError('Invalid email or password');
+                setError('Invalid email, password, or unauthorized role');
             }
         } catch (err) {
             setError('An error occurred during login.');
@@ -43,12 +43,12 @@ function LoginContent() {
         setIsLoading(true);
         setError('');
         try {
-            const success = await loginWithGoogle();
+            const success = await loginWithGoogle('customer');
             if (success) {
                 const from = searchParams.get('from') || '/';
                 router.replace(from);
             } else {
-                setError('Google sign-in failed');
+                setError('Google sign-in failed or unauthorized role');
             }
         } catch (err) {
             setError('An error occurred during Google login.');
@@ -61,12 +61,12 @@ function LoginContent() {
         setIsLoading(true);
         setError('');
         try {
-            const success = await loginWithApple();
+            const success = await loginWithApple('customer');
             if (success) {
                 const from = searchParams.get('from') || '/';
                 router.replace(from);
             } else {
-                setError('Apple sign-in failed');
+                setError('Apple sign-in failed or unauthorized role');
             }
         } catch (err) {
             setError('An error occurred during Apple login.');

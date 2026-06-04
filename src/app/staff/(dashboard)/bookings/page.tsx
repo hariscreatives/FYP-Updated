@@ -106,7 +106,7 @@ export default function BookingsList() {
                                             {booking.status}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell>${booking.totalPrice}</TableCell>
+                                    <TableCell>PKR {booking.totalPrice.toLocaleString()}</TableCell>
                                     <TableCell>
                                         <Link href={`/staff/bookings/${booking.id}`}>
                                             <button className="text-primary hover:text-primary/80 flex items-center space-x-1 cursor-pointer">

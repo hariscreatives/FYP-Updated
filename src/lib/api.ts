@@ -1,16 +1,17 @@
-import { 
-    collection, 
-    getDocs, 
-    getDoc, 
-    doc, 
-    setDoc, 
-    updateDoc, 
-    deleteDoc, 
-    query, 
-    orderBy 
+import {
+    collection,
+    getDocs,
+    getDoc,
+    doc,
+    setDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    orderBy,
+    onSnapshot
 } from 'firebase/firestore';
-import { 
-    signInWithEmailAndPassword, 
+import {
+    signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     onAuthStateChanged,
     GoogleAuthProvider,
@@ -31,20 +32,57 @@ const MOCK_USERS = [
 ];
 
 const MOCK_ROOMS = [
-    { id: 'room-1', number: '101', type: 'Single', price: 99.0, capacity: 1, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar'], available: true, imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500', description: 'Cozy single room perfect for solo travelers' },
-    { id: 'room-2', number: '102', type: 'Double', price: 149.0, capacity: 2, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony'], available: true, imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=500', description: 'Comfortable double room with city view' },
-    { id: 'room-3', number: '201', type: 'Suite', price: 299.0, capacity: 3, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room'], available: true, imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500', description: 'Spacious suite with separate living area' },
-    { id: 'room-4', number: '202', type: 'Deluxe', price: 399.0, capacity: 4, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room', 'Kitchen'], available: false, imageUrl: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=500', description: 'Luxurious deluxe room with stunning views' },
-    { id: 'room-5', number: '301', type: 'Presidential', price: 799.0, capacity: 6, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room', 'Kitchen', 'Private Pool', 'Butler Service'], available: true, imageUrl: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=500', description: 'Ultimate luxury presidential suite' },
-    { id: 'room-6', number: '103', type: 'Double', price: 149.0, capacity: 2, amenities: ['WiFi', 'AC', 'TV', 'Mini Bar'], available: true, imageUrl: 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=500', description: 'Modern double room with contemporary design' },
+    // 10 Single Rooms (1st Floor)
+    ...Array.from({ length: 10 }, (_, i) => ({
+        id: `room-${i + 1}`,
+        number: `1${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Single',
+        price: 5000.0,
+        capacity: 1,
+        amenities: ['WiFi', 'AC', 'TV'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500',
+        description: 'Basic amenities, perfect for a short stay, includes complimentary breakfast.'
+    })),
+    // 10 Double Rooms (2nd Floor)
+    ...Array.from({ length: 10 }, (_, i) => ({
+        id: `room-${i + 11}`,
+        number: `2${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Double',
+        price: 10000.0,
+        capacity: 2,
+        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=500',
+        description: 'Comfortable room for two, includes complimentary breakfast and city view.'
+    })),
+    // 6 Suite Rooms (3rd Floor)
+    ...Array.from({ length: 6 }, (_, i) => ({
+        id: `room-${i + 21}`,
+        number: `3${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Suite',
+        price: 20000.0,
+        capacity: 3,
+        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Living Room', 'Jacuzzi'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500',
+        description: 'Spacious suite with living area, premium amenities, complimentary breakfast, and pool access.'
+    })),
+    // 4 Presidential Rooms (4th Floor)
+    ...Array.from({ length: 4 }, (_, i) => ({
+        id: `room-${i + 27}`,
+        number: `4${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Presidential',
+        price: 50000.0,
+        capacity: 4,
+        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Living Room', 'Jacuzzi', 'Private Pool', 'Butler Service'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=500',
+        description: 'Ultimate luxury, panoramic views, private butler service, exclusive lounge access.'
+    }))
 ];
 
-const MOCK_BOOKINGS = [
-    { id: 'BK001', guestName: 'John Doe', guestEmail: 'john.doe@email.com', guestPhone: '+1234567890', roomId: 'room-2', roomNumber: '102', roomType: 'Double', checkIn: '2026-01-10', checkOut: '2026-01-15', guests: 2, totalPrice: 745.0, status: 'Confirmed', createdAt: '2026-01-02T10:30:00' },
-    { id: 'BK002', guestName: 'Jane Smith', guestEmail: 'jane.smith@email.com', guestPhone: '+1234567891', roomId: 'room-4', roomNumber: '202', roomType: 'Deluxe', checkIn: '2026-01-04', checkOut: '2026-01-08', guests: 3, totalPrice: 1596.0, status: 'Confirmed', createdAt: '2026-01-01T14:20:00' },
-    { id: 'BK003', guestName: 'Mike Johnson', guestEmail: 'mike.j@email.com', guestPhone: '+1234567892', roomId: 'room-1', roomNumber: '101', roomType: 'Single', checkIn: '2026-01-05', checkOut: '2026-01-07', guests: 1, totalPrice: 198.0, status: 'Pending', createdAt: '2026-01-04T09:15:00' },
-    { id: 'BK004', guestName: 'Sarah Williams', guestEmail: 'sarah.w@email.com', guestPhone: '+1234567893', roomId: 'room-3', roomNumber: '201', roomType: 'Suite', checkIn: '2026-01-20', checkOut: '2026-01-25', guests: 2, totalPrice: 1495.0, status: 'Pending', createdAt: '2026-01-03T16:45:00', specialRequests: 'Late checkout if possible' },
-];
+const MOCK_BOOKINGS: any[] = [];
 
 const MOCK_COMPLAINTS = [
     { id: 'CMP001', guestName: 'Robert Brown', guestEmail: 'robert.b@email.com', category: 'Room', description: 'Air conditioning not working properly in room 105', status: 'New', createdAt: '2026-01-04T08:30:00', assignedTo: null, notes: null, resolvedAt: null },
@@ -76,13 +114,13 @@ const MOCK_ACTIVITIES = [
 // ============================================================================
 
 const KEYS = {
-    ROOMS: 'hotel_rooms',
-    BOOKINGS: 'hotel_bookings',
-    COMPLAINTS: 'hotel_complaints',
-    EMERGENCIES: 'hotel_emergencies',
-    FEEDBACK: 'hotel_feedback',
-    USERS: 'hotel_users',
-    ACTIVITIES: 'hotel_activities'
+    ROOMS: 'grandhotel-rooms-v2',
+    BOOKINGS: 'grandhotel-bookings-v3',
+    COMPLAINTS: 'grandhotel-complaints-v2',
+    EMERGENCIES: 'grandhotel-emergencies-v2',
+    FEEDBACK: 'grandhotel-feedback-v2',
+    USERS: 'grandhotel-users-v2',
+    ACTIVITIES: 'grandhotel-activities-v2'
 };
 
 const getLS = (key: string, defaultVal: any) => {
@@ -107,6 +145,12 @@ const setLS = (key: string, val: any) => {
 
 // Initialize LocalStorage with default seeds if empty
 const initLocalStorageDB = () => {
+    if (typeof window !== 'undefined' && !localStorage.getItem('hotel_bookings_cleared_v2')) {
+        localStorage.removeItem('hotel_bookings');
+        localStorage.removeItem('bookings');
+        localStorage.removeItem('rooms');
+        localStorage.setItem('hotel_bookings_cleared_v2', 'true');
+    }
     getLS(KEYS.ROOMS, MOCK_ROOMS);
     getLS(KEYS.BOOKINGS, MOCK_BOOKINGS);
     getLS(KEYS.COMPLAINTS, MOCK_COMPLAINTS);
@@ -128,23 +172,23 @@ let hasSeededFirestore = false;
 
 const seedAuthUsers = async () => {
     if (typeof window === 'undefined' || !auth || !db) return;
-    
+
     // Check if auth has already been seeded in this browser session
     if (localStorage.getItem('auth_seeded') === 'true') return;
-    
+
     const defaultAuthUsers = [
         { email: 'admin@grandhotel.com', password: 'admin123', name: 'Admin User', role: 'Admin' },
         { email: 'alice@grandhotel.com', password: 'staff123', name: 'Alice Manager', role: 'Staff' },
         { email: 'bob@grandhotel.com', password: 'staff123', name: 'Bob Security', role: 'Staff' },
         { email: 'carol@grandhotel.com', password: 'staff123', name: 'Carol Housekeeping', role: 'Staff' }
     ];
-    
+
     console.log('Seeding Firebase Authentication users...');
     for (const u of defaultAuthUsers) {
         try {
             const userCred = await createUserWithEmailAndPassword(auth, u.email, u.password);
             const uid = userCred.user.uid;
-            
+
             // Write/overwrite user profile to Firestore keyed by their actual Auth UID!
             await setDoc(doc(db, 'users', uid), {
                 id: uid,
@@ -152,7 +196,7 @@ const seedAuthUsers = async () => {
                 email: u.email,
                 role: u.role
             });
-            
+
             console.log(`Auth user ${u.email} created successfully.`);
             await auth.signOut();
         } catch (e: any) {
@@ -168,7 +212,7 @@ const seedAuthUsers = async () => {
 };
 const seedFirestoreIfEmpty = async () => {
     if (!isFirebaseConfigured || !db || hasSeededFirestore) return;
-    
+
     try {
         const roomsSnap = await getDocs(collection(db, 'rooms'));
         if (roomsSnap.empty) {
@@ -202,7 +246,7 @@ const seedFirestoreIfEmpty = async () => {
                 await setDoc(doc(db, 'activities', item.id), item);
             }
             console.log('Firestore database seeded successfully.');
-            
+
             // Also trigger auth seeding
             await seedAuthUsers();
         }
@@ -224,12 +268,26 @@ if (typeof window !== 'undefined') {
 // --- Rooms API ---
 export const roomsAPI = {
     getAll: async () => {
+        let roomsData: any[] = [];
         if (isFirebaseConfigured && db) {
             await seedFirestoreIfEmpty();
             const snap = await getDocs(collection(db, 'rooms'));
-            return snap.docs.map(doc => doc.data());
+            roomsData = snap.docs.map(doc => doc.data());
         } else {
-            return getLS(KEYS.ROOMS, MOCK_ROOMS);
+            roomsData = getLS(KEYS.ROOMS, MOCK_ROOMS);
+        }
+        return roomsData.sort((a, b) => Number(a.number) - Number(b.number));
+    },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'rooms'), (snap) => {
+                const data = snap.docs.map(doc => doc.data()).sort((a, b) => Number(a.number) - Number(b.number));
+                callback(data);
+            });
+        } else {
+            const data = getLS(KEYS.ROOMS, MOCK_ROOMS).sort((a: any, b: any) => Number(a.number) - Number(b.number));
+            callback(data);
+            return () => {};
         }
     },
     getById: async (id: string) => {
@@ -288,6 +346,16 @@ export const bookingsAPI = {
             return getLS(KEYS.BOOKINGS, MOCK_BOOKINGS);
         }
     },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'bookings'), (snap) => {
+                callback(snap.docs.map(doc => doc.data()));
+            });
+        } else {
+            callback(getLS(KEYS.BOOKINGS, MOCK_BOOKINGS));
+            return () => {};
+        }
+    },
     getById: async (id: string) => {
         if (isFirebaseConfigured && db) {
             const docSnap = await getDoc(doc(db, 'bookings', id));
@@ -308,22 +376,10 @@ export const bookingsAPI = {
 
         if (isFirebaseConfigured && db) {
             await setDoc(doc(db, 'bookings', id), newBooking);
-            // Toggle room availability
-            if (booking.roomId) {
-                await roomsAPI.update(booking.roomId, { available: false });
-            }
         } else {
             const list = getLS(KEYS.BOOKINGS, MOCK_BOOKINGS);
             list.unshift(newBooking);
             setLS(KEYS.BOOKINGS, list);
-            if (booking.roomId) {
-                const rooms = getLS(KEYS.ROOMS, MOCK_ROOMS);
-                const index = rooms.findIndex((r: any) => r.id === booking.roomId);
-                if (index !== -1) {
-                    rooms[index].available = false;
-                    setLS(KEYS.ROOMS, rooms);
-                }
-            }
         }
 
         // Add activity audit entry
@@ -362,6 +418,16 @@ export const complaintsAPI = {
             return snap.docs.map(doc => doc.data());
         } else {
             return getLS(KEYS.COMPLAINTS, MOCK_COMPLAINTS);
+        }
+    },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'complaints'), (snap) => {
+                callback(snap.docs.map(doc => doc.data()));
+            });
+        } else {
+            callback(getLS(KEYS.COMPLAINTS, MOCK_COMPLAINTS));
+            return () => {};
         }
     },
     getById: async (id: string) => {
@@ -430,6 +496,16 @@ export const emergenciesAPI = {
             return getLS(KEYS.EMERGENCIES, MOCK_EMERGENCIES);
         }
     },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'emergencies'), (snap) => {
+                callback(snap.docs.map(doc => doc.data()));
+            });
+        } else {
+            callback(getLS(KEYS.EMERGENCIES, MOCK_EMERGENCIES));
+            return () => {};
+        }
+    },
     getById: async (id: string) => {
         if (isFirebaseConfigured && db) {
             const docSnap = await getDoc(doc(db, 'emergencies', id));
@@ -496,6 +572,16 @@ export const feedbackAPI = {
             return getLS(KEYS.FEEDBACK, MOCK_FEEDBACK);
         }
     },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'feedback'), (snap) => {
+                callback(snap.docs.map(doc => doc.data()));
+            });
+        } else {
+            callback(getLS(KEYS.FEEDBACK, MOCK_FEEDBACK));
+            return () => {};
+        }
+    },
     create: async (feedback: any) => {
         const id = `FB-${Date.now()}`;
         const newFB = {
@@ -526,6 +612,18 @@ export const staffAPI = {
         } else {
             const users = getLS(KEYS.USERS, MOCK_USERS);
             return users.filter((u: any) => u.role === 'Staff' || u.role === 'Admin');
+        }
+    },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'users'), (snap) => {
+                const list = snap.docs.map(doc => doc.data());
+                callback(list.filter((u: any) => u.role === 'Staff' || u.role === 'Admin'));
+            });
+        } else {
+            const users = getLS(KEYS.USERS, MOCK_USERS);
+            callback(users.filter((u: any) => u.role === 'Staff' || u.role === 'Admin'));
+            return () => {};
         }
     },
     getById: async (id: string) => {
@@ -641,7 +739,7 @@ export const authAPI = {
                 const email = userCred.user.email || '';
                 const name = userCred.user.displayName || email.split('@')[0] || 'Google User';
                 const phone = userCred.user.phoneNumber || '';
-                
+
                 const docSnap = await getDoc(doc(db, 'users', uid));
                 let userData: any;
                 if (docSnap.exists()) {
@@ -695,7 +793,7 @@ export const authAPI = {
                 const email = userCred.user.email || '';
                 const name = userCred.user.displayName || email.split('@')[0] || 'Apple User';
                 const phone = userCred.user.phoneNumber || '';
-                
+
                 const docSnap = await getDoc(doc(db, 'users', uid));
                 let userData: any;
                 if (docSnap.exists()) {
@@ -827,6 +925,16 @@ export const usersAPI = {
             return getLS(KEYS.USERS, MOCK_USERS);
         }
     },
+    subscribeAll: (callback: (data: any[]) => void) => {
+        if (isFirebaseConfigured && db) {
+            return onSnapshot(collection(db, 'users'), (snap) => {
+                callback(snap.docs.map(doc => doc.data()));
+            });
+        } else {
+            callback(getLS(KEYS.USERS, MOCK_USERS));
+            return () => {};
+        }
+    },
     delete: async (id: string) => {
         if (isFirebaseConfigured && db) {
             await deleteDoc(doc(db, 'users', id));
@@ -865,7 +973,7 @@ export const analyticsAPI = {
         const totalRooms = rooms.length;
         const bookedRooms = bookings.filter((b: any) => b.status === 'Confirmed' && new Date(b.checkOut) > new Date()).length;
         const occupancyRate = totalRooms > 0 ? Math.round((bookedRooms / totalRooms) * 100) : 0;
-        
+
         const sumRatings = feedback.reduce((sum: number, f: any) => sum + f.rating, 0);
         const avgRating = feedback.length > 0 ? Math.round((sumRatings / feedback.length) * 10) / 10 : 4.5;
 

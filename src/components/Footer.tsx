@@ -74,7 +74,7 @@ export default function Footer() {
                         </h3>
                         <ul className="space-y-2.5 text-sm">
                             <li>
-                                <Link href="/booking" className={cn('group flex items-center gap-3', footerLink)}>
+                                <Link href="/availability" className={cn('group flex items-center gap-3', footerLink)}>
                                     <span className={iconBadge}>
                                         <Calendar className="h-4 w-4" />
                                     </span>

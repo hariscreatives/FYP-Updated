@@ -27,9 +27,6 @@ export default function BookingConfirmation() {
         );
     }
 
-    const nights = Math.ceil(
-        (new Date(booking.checkOut).getTime() - new Date(booking.checkIn).getTime()) / (1000 * 60 * 60 * 24)
-    );
 
     return (
         <div className="container mx-auto px-4 py-8 max-w-2xl">
@@ -113,13 +110,13 @@ export default function BookingConfirmation() {
                             <div className="flex-1">
                                 <p className="text-sm text-gray-600 mb-2">Payment Summary</p>
                                 <div className="space-y-1 text-sm">
-                                    <div className="flex justify-between">
-                                        <span>Room rate ({nights} night{nights > 1 ? 's' : ''})</span>
-                                        <span>${booking.totalPrice}</span>
+                                    <div className="flex justify-between font-medium">
+                                        <span>Total Amount</span>
+                                        <span>PKR {booking.totalPrice.toLocaleString()}</span>
                                     </div>
-                                    <div className="flex justify-between font-semibold text-lg pt-2 border-t">
-                                        <span>Total</span>
-                                        <span className="text-primary">${booking.totalPrice}</span>
+                                    <div className="flex justify-between text-lg font-bold mt-4 pt-4 border-t">
+                                        <span>Amount Due at Check-in</span>
+                                        <span className="text-primary">PKR {booking.totalPrice.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>

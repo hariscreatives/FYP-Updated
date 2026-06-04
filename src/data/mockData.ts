@@ -11,72 +11,54 @@ import type {
 
 // Mock Rooms Data
 export const mockRooms: Room[] = [
-    {
-        id: 'room-1',
-        number: '101',
+    // 10 Single Rooms (1st Floor)
+    ...Array.from({ length: 10 }, (_, i): Room => ({
+        id: `room-${i + 1}`,
+        number: `1${(i + 1).toString().padStart(2, '0')}`,
         type: 'Single',
-        price: 99,
+        price: 5000.0,
         capacity: 1,
-        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar'],
+        amenities: ['WiFi', 'AC', 'TV'],
         available: true,
         imageUrl: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500',
-        description: 'Cozy single room perfect for solo travelers',
-    },
-    {
-        id: 'room-2',
-        number: '102',
+        description: 'Basic amenities, perfect for a short stay, includes complimentary breakfast.'
+    })),
+    // 10 Double Rooms (2nd Floor)
+    ...Array.from({ length: 10 }, (_, i): Room => ({
+        id: `room-${i + 11}`,
+        number: `2${(i + 1).toString().padStart(2, '0')}`,
         type: 'Double',
-        price: 149,
-        capacity: 2,
-        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony'],
-        available: true,
-        imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=500',
-        description: 'Comfortable double room with city view',
-    },
-    {
-        id: 'room-3',
-        number: '201',
-        type: 'Suite',
-        price: 299,
-        capacity: 3,
-        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room'],
-        available: true,
-        imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500',
-        description: 'Spacious suite with separate living area',
-    },
-    {
-        id: 'room-4',
-        number: '202',
-        type: 'Deluxe',
-        price: 399,
-        capacity: 4,
-        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room', 'Kitchen'],
-        available: false,
-        imageUrl: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=500',
-        description: 'Luxurious deluxe room with stunning views',
-    },
-    {
-        id: 'room-5',
-        number: '301',
-        type: 'Presidential',
-        price: 799,
-        capacity: 6,
-        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Balcony', 'Jacuzzi', 'Living Room', 'Kitchen', 'Private Pool', 'Butler Service'],
-        available: true,
-        imageUrl: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=500',
-        description: 'Ultimate luxury presidential suite',
-    },
-    {
-        id: 'room-6',
-        number: '103',
-        type: 'Double',
-        price: 149,
+        price: 10000.0,
         capacity: 2,
         amenities: ['WiFi', 'AC', 'TV', 'Mini Bar'],
         available: true,
-        imageUrl: 'https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=500',
-        description: 'Modern double room with contemporary design',
-    },
+        imageUrl: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=500',
+        description: 'Comfortable room for two, includes complimentary breakfast and city view.'
+    })),
+    // 6 Suite Rooms (3rd Floor)
+    ...Array.from({ length: 6 }, (_, i): Room => ({
+        id: `room-${i + 21}`,
+        number: `3${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Suite',
+        price: 20000.0,
+        capacity: 3,
+        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Living Room', 'Jacuzzi'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500',
+        description: 'Spacious suite with living area, premium amenities, complimentary breakfast, and pool access.'
+    })),
+    // 4 Presidential Rooms (4th Floor)
+    ...Array.from({ length: 4 }, (_, i): Room => ({
+        id: `room-${i + 27}`,
+        number: `4${(i + 1).toString().padStart(2, '0')}`,
+        type: 'Presidential',
+        price: 50000.0,
+        capacity: 4,
+        amenities: ['WiFi', 'AC', 'TV', 'Mini Bar', 'Living Room', 'Jacuzzi', 'Private Pool', 'Butler Service'],
+        available: true,
+        imageUrl: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=500',
+        description: 'Ultimate luxury, panoramic views, private butler service, exclusive lounge access.'
+    }))
 ];
 
 // Mock Bookings Data

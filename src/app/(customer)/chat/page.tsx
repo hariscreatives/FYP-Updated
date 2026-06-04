@@ -35,7 +35,7 @@ export default function Chat() {
     const [isSpeakerOn, setIsSpeakerOn] = useState(true); // Default to true so user hears output
     const [callTranscript, setCallTranscript] = useState<string>('');
     const [isAITalking, setIsAITalking] = useState(false);
-    
+
     const recognitionRef = useRef<any>(null);
     const isMutedRef = useRef(false);
     const isAITalkingRef = useRef(false);
@@ -101,10 +101,10 @@ export default function Chat() {
                 .replace(/\*+/g, "")
                 .trim();
             const utterance = new SpeechSynthesisUtterance(cleanText);
-            
+
             setIsAITalking(true);
             isAITalkingRef.current = true;
-            
+
             utterance.onend = () => {
                 setIsAITalking(false);
                 isAITalkingRef.current = false;
@@ -161,7 +161,7 @@ export default function Chat() {
                         return;
                     }
                     isWaitingForAIRef.current = true;
-                    try { recognition.stop(); } catch(e){}
+                    try { recognition.stop(); } catch (e) { }
                     await handleVoiceInput(transcript);
                 }
             };
@@ -173,7 +173,7 @@ export default function Chat() {
                     if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
                         setTimeout(() => {
                             if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
-                                try { recognition.start(); } catch (e) {}
+                                try { recognition.start(); } catch (e) { }
                             }
                         }, 500);
                     }
@@ -185,7 +185,7 @@ export default function Chat() {
                 if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
                     setTimeout(() => {
                         if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
-                            try { recognition.start(); } catch (e) {}
+                            try { recognition.start(); } catch (e) { }
                         }
                     }, 300);
                 }
@@ -204,10 +204,10 @@ export default function Chat() {
     // Send transcribed user input to OpenAI, get back speech response
     const handleVoiceInput = async (userInputText: string) => {
         isWaitingForAIRef.current = true;
-        
+
         // Stop recognition while processing/talking
         if (recognitionRef.current) {
-            try { recognitionRef.current.stop(); } catch (e) {}
+            try { recognitionRef.current.stop(); } catch (e) { }
         }
 
         const userMessage: ChatMessage = {
@@ -298,7 +298,7 @@ export default function Chat() {
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
             window.speechSynthesis.cancel();
         }
-        
+
         // Ring for 2 seconds, then connect
         setTimeout(() => {
             setCallStatus('connected');
@@ -316,7 +316,7 @@ export default function Chat() {
         setIsAITalking(false);
         isAITalkingRef.current = false;
         isWaitingForAIRef.current = false;
-        
+
         if (typeof window !== 'undefined') {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
@@ -328,10 +328,10 @@ export default function Chat() {
                 recognitionRef.current.onerror = null;
                 recognitionRef.current.onresult = null;
                 recognitionRef.current.stop();
-            } catch (e) {}
+            } catch (e) { }
             recognitionRef.current = null;
         }
-        
+
         setTimeout(() => {
             setIsCalling(false);
         }, 800);
@@ -342,7 +342,7 @@ export default function Chat() {
         if (callStatus === 'connected') {
             if (isMuted) {
                 if (recognitionRef.current) {
-                    try { recognitionRef.current.stop(); } catch(e){}
+                    try { recognitionRef.current.stop(); } catch (e) { }
                 }
                 setCallTranscript('Microphone muted.');
             } else {
@@ -483,8 +483,8 @@ export default function Chat() {
                         >
                             <div
                                 className={`max-w-[70%] rounded-lg px-4 py-2 ${msg.sender === 'user'
-                                        ? 'bg-primary text-primary-foreground'
-                                        : 'bg-gray-100 text-gray-900'
+                                    ? 'bg-primary text-primary-foreground'
+                                    : 'bg-gray-100 text-gray-900'
                                     }`}
                             >
                                 <p>{msg.message}</p>
@@ -587,7 +587,7 @@ export default function Chat() {
                                     <img src={LOGO_NO_BG_SRC} alt="Grand Hotel Logo" className="h-full w-full object-contain scale-110" />
                                 </div>
                             </div>
-                            
+
                             <div className="text-center space-y-0.5">
                                 <h3 className="text-xl font-bold tracking-tight">Grand Hotel Assistant</h3>
                                 <p className="text-xs font-medium text-slate-400">
@@ -613,9 +613,8 @@ export default function Chat() {
                                                     animationDelay: `${delay}s`,
                                                     animationDuration: `${duration}s`
                                                 }}
-                                                className={`w-1 rounded-full bg-blue-400 ${
-                                                    isAITalking ? 'animate-bounce h-6' : 'h-2'
-                                                } transition-all duration-300`}
+                                                className={`w-1 rounded-full bg-blue-400 ${isAITalking ? 'animate-bounce h-6' : 'h-2'
+                                                    } transition-all duration-300`}
                                             />
                                         );
                                     })}
@@ -654,11 +653,10 @@ export default function Chat() {
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
                                 disabled={callStatus === 'ended'}
-                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${
-                                    isMuted 
-                                        ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30' 
+                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isMuted
+                                        ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30'
                                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                                }`}
+                                    }`}
                                 title={isMuted ? "Unmute" : "Mute"}
                             >
                                 {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
@@ -677,11 +675,10 @@ export default function Chat() {
                             <button
                                 onClick={() => setIsSpeakerOn(!isSpeakerOn)}
                                 disabled={callStatus === 'ended'}
-                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${
-                                    isSpeakerOn 
-                                        ? 'bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30' 
+                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isSpeakerOn
+                                        ? 'bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30'
                                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                                }`}
+                                    }`}
                                 title="Speaker"
                             >
                                 {isSpeakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}

@@ -8,15 +8,18 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useData } from '@/context/DataContext';
-import { getRoomById } from '@/data/mockData';
 import { generateId } from '@/lib/utils';
 import type { Booking } from '@/types';
+import { format, startOfDay, eachDayOfInterval } from 'date-fns';
 
 function BookingContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { addBooking } = useData();
+    const { addBooking, rooms, bookings } = useData();
     const preselectedRoomId = searchParams.get('roomId');
+    // For the booking form, we can show all rooms that are physically available
+    // but their specific dates will be blocked in the calendar.
+    const availableRooms = rooms.filter(room => room.available);
 
     const [formData, setFormData] = useState({
         guestName: '',
@@ -31,6 +34,23 @@ function BookingContent() {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // Compute booked dates for the selected room
+    const disabledDates = React.useMemo(() => {
+        if (!formData.roomId) return [];
+        
+        const roomBookings = bookings.filter(b => b.roomId === formData.roomId && (b.status === 'Confirmed' || b.status === 'Completed'));
+        
+        let disabled: Date[] = [];
+        roomBookings.forEach(booking => {
+            const dates = eachDayOfInterval({
+                start: startOfDay(new Date(booking.checkIn)),
+                end: startOfDay(new Date(booking.checkOut))
+            });
+            disabled = [...disabled, ...dates];
+        });
+        return disabled;
+    }, [formData.roomId, bookings]);
+
     const validate = () => {
         const newErrors: Record<string, string> = {};
 
@@ -38,11 +58,31 @@ function BookingContent() {
         if (!formData.guestEmail.trim()) newErrors.guestEmail = 'Email is required';
         if (!formData.guestPhone.trim()) newErrors.guestPhone = 'Phone is required';
         if (!formData.roomId) newErrors.roomId = 'Please select a room';
+        
         if (!formData.checkIn) newErrors.checkIn = 'Check-in date is required';
         if (!formData.checkOut) newErrors.checkOut = 'Check-out date is required';
-
-        if (formData.checkIn && formData.checkOut && formData.checkOut <= formData.checkIn) {
-            newErrors.checkOut = 'Check-out must be after check-in';
+        
+        if (formData.checkIn && formData.checkOut) {
+            const checkInDate = startOfDay(new Date(formData.checkIn));
+            const checkOutDate = startOfDay(new Date(formData.checkOut));
+            
+            if (checkOutDate <= checkInDate) {
+                newErrors.checkOut = 'Check-out must be after check-in';
+            } else {
+                // Check if selected range overlaps with any disabled dates
+                const selectedDates = eachDayOfInterval({
+                    start: checkInDate,
+                    end: checkOutDate
+                });
+                
+                const hasOverlap = selectedDates.some(selected => 
+                    disabledDates.some(disabled => disabled.getTime() === selected.getTime())
+                );
+                
+                if (hasOverlap) {
+                    newErrors.checkIn = 'Selected dates overlap with an existing booking';
+                }
+            }
         }
 
         setErrors(newErrors);
@@ -54,13 +94,13 @@ function BookingContent() {
 
         if (!validate()) return;
 
-        const room = getRoomById(formData.roomId);
+        const room = rooms.find(r => r.id === formData.roomId);
         if (!room) return;
 
         // Calculate total price
-        const checkIn = new Date(formData.checkIn);
-        const checkOut = new Date(formData.checkOut);
-        const nights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24));
+        const checkInDate = startOfDay(new Date(formData.checkIn));
+        const checkOutDate = startOfDay(new Date(formData.checkOut));
+        const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
         const totalPrice = room.price * nights;
 
         const newBooking: Booking = {
@@ -136,10 +176,11 @@ function BookingContent() {
                                 onChange={(e) => setFormData({ ...formData, roomId: e.target.value })}
                             >
                                 <option value="">Select a room</option>
-                                <option value="room-1">Single Room - $99/night</option>
-                                <option value="room-2">Double Room - $149/night</option>
-                                <option value="room-3">Suite - $299/night</option>
-                                <option value="room-5">Presidential Suite - $799/night</option>
+                                {availableRooms.map(room => (
+                                    <option key={room.id} value={room.id}>
+                                        {room.type} Room {room.number} - PKR {room.price.toLocaleString()}/night
+                                    </option>
+                                ))}
                             </Select>
                             {errors.roomId && <p className="text-red-500 text-xs mt-1">{errors.roomId}</p>}
                         </div>

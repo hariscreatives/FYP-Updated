@@ -23,12 +23,12 @@ export default function Login() {
         e.preventDefault();
         setError('');
 
-        const success = await login(formData.email, formData.password);
+        const success = await login(formData.email, formData.password, 'Staff');
 
         if (success) {
             router.push('/staff/dashboard');
         } else {
-            setError('Invalid email or password');
+            setError('Invalid email, password, or unauthorized role');
         }
     };
 

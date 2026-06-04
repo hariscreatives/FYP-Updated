@@ -10,20 +10,16 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchUsers();
-    }, []);
-
-    const fetchUsers = async () => {
-        try {
-            setLoading(true);
-            const data = await usersAPI.getAll();
+        setLoading(true);
+        const unsubscribe = usersAPI.subscribeAll((data) => {
             setUsers(data);
-        } catch (error) {
-            console.error("Failed to fetch users", error);
-        } finally {
             setLoading(false);
-        }
-    };
+        });
+
+        return () => {
+            unsubscribe();
+        };
+    }, []);
 
     const handleDelete = async (id: string) => {
         if (window.confirm('Are you sure you want to delete this user?')) {
@@ -43,12 +39,14 @@ export default function Dashboard() {
 
     return (
         <div className="space-y-6 font-sans">
-            <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
-                    <Shield className="h-7 w-7 text-primary" />
-                    Admin Panel
-                </h1>
-                <p className="text-gray-500 font-medium">Manage users and system data</p>
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2 mb-2">
+                        <Shield className="h-7 w-7 text-primary" />
+                        Admin Panel
+                    </h1>
+                    <p className="text-gray-500 font-medium">Manage users and system data</p>
+                </div>
             </div>
 
             {/* KPI Cards */}

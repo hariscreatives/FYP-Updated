@@ -12,9 +12,9 @@ interface AuthUser {
 
 interface AuthContextType {
     user: AuthUser | null;
-    login: (email: string, password: string) => Promise<boolean>;
-    loginWithGoogle: () => Promise<boolean>;
-    loginWithApple: () => Promise<boolean>;
+    login: (email: string, password: string, requiredRole?: 'Staff' | 'customer') => Promise<boolean>;
+    loginWithGoogle: (requiredRole?: 'Staff' | 'customer') => Promise<boolean>;
+    loginWithApple: (requiredRole?: 'Staff' | 'customer') => Promise<boolean>;
     register: (userData: any) => Promise<boolean>;
     logout: () => void;
     isAuthenticated: boolean;
@@ -39,11 +39,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setLoading(false);
     }, []);
 
-    const login = async (email: string, password: string): Promise<boolean> => {
+    const checkRole = (user: AuthUser, requiredRole?: 'Staff' | 'customer') => {
+        if (!requiredRole) return true;
+        const isStaff = user.role === 'Admin' || user.role === 'Staff';
+        const isCustomer = user.role === 'customer';
+        if (requiredRole === 'Staff' && !isStaff) return false;
+        if (requiredRole === 'customer' && !isCustomer) return false;
+        return true;
+    };
+
+    const login = async (email: string, password: string, requiredRole?: 'Staff' | 'customer'): Promise<boolean> => {
         try {
             setLoading(true);
             const response = await authAPI.login(email, password);
             if (response.success && response.user) {
+                if (!checkRole(response.user, requiredRole)) {
+                    return false;
+                }
                 setUser(response.user);
                 localStorage.setItem('auth-user', JSON.stringify(response.user));
                 if (response.token) {
@@ -60,11 +72,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const loginWithGoogle = async (): Promise<boolean> => {
+    const loginWithGoogle = async (requiredRole?: 'Staff' | 'customer'): Promise<boolean> => {
         try {
             setLoading(true);
             const response = await authAPI.loginWithGoogle();
             if (response.success && response.user) {
+                if (!checkRole(response.user, requiredRole)) {
+                    return false;
+                }
                 setUser(response.user);
                 localStorage.setItem('auth-user', JSON.stringify(response.user));
                 if (response.token) {
@@ -81,11 +96,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const loginWithApple = async (): Promise<boolean> => {
+    const loginWithApple = async (requiredRole?: 'Staff' | 'customer'): Promise<boolean> => {
         try {
             setLoading(true);
             const response = await authAPI.loginWithApple();
             if (response.success && response.user) {
+                if (!checkRole(response.user, requiredRole)) {
+                    return false;
+                }
                 setUser(response.user);
                 localStorage.setItem('auth-user', JSON.stringify(response.user));
                 if (response.token) {

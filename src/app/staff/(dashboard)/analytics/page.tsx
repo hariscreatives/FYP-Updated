@@ -54,7 +54,7 @@ export default function Analytics() {
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-bold">
-                            ${bookingsByMonth[bookingsByMonth.length - 1].revenue.toLocaleString()}
+                            PKR {bookingsByMonth[bookingsByMonth.length - 1].revenue.toLocaleString()}
                         </div>
                         <p className="text-xs text-gray-500 mt-1">Current month</p>
                     </CardContent>
@@ -91,7 +91,7 @@ export default function Analytics() {
                             <Tooltip />
                             <Legend />
                             <Line yAxisId="left" type="monotone" dataKey="count" stroke="#3b82f6" name="Bookings" strokeWidth={2} />
-                            <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" name="Revenue ($)" strokeWidth={2} />
+                            <Line yAxisId="right" type="monotone" dataKey="revenue" stroke="#10b981" name="Revenue (PKR)" strokeWidth={2} />
                         </LineChart>
                     </ResponsiveContainer>
                 </CardContent>

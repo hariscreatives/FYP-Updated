@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import type { Booking, Complaint, Emergency, Feedback } from '@/types';
-import { bookingsAPI, complaintsAPI, emergenciesAPI, feedbackAPI } from '@/lib/api';
+import type { Booking, Complaint, Emergency, Feedback, Room } from '@/types';
+import { bookingsAPI, complaintsAPI, emergenciesAPI, feedbackAPI, roomsAPI } from '@/lib/api';
 
 interface DataContextType {
+    rooms: Room[];
     bookings: Booking[];
     complaints: Complaint[];
     emergencies: Emergency[];
@@ -23,6 +24,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const [rooms, setRooms] = useState<Room[]>([]);
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [complaints, setComplaints] = useState<Complaint[]>([]);
     const [emergencies, setEmergencies] = useState<Emergency[]>([]);
@@ -30,20 +32,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [loading, setLoading] = useState(true);
 
     const refreshData = useCallback(async () => {
+        // Keep this for manual refreshes if needed, but the main driver will be real-time
         try {
             setLoading(true);
-            const [bookingsData, complaintsData, emergenciesData, feedbackData] = await Promise.all([
+            const [roomsData, bookingsData, complaintsData, emergenciesData, feedbackData] = await Promise.all([
+                roomsAPI.getAll(),
                 bookingsAPI.getAll(),
                 complaintsAPI.getAll(),
                 emergenciesAPI.getAll(),
                 feedbackAPI.getAll(),
             ]);
+            setRooms(roomsData);
             setBookings(bookingsData);
             setComplaints(complaintsData);
             setEmergencies(emergenciesData);
             setFeedback(feedbackData);
         } catch (error) {
-            // Backend is currently separated/unavailable, silencing this error to keep the console clean
             console.warn('Backend unavailable, using default empty state for data.');
         } finally {
             setLoading(false);
@@ -51,8 +55,24 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }, []);
 
     useEffect(() => {
-        refreshData();
-    }, [refreshData]);
+        setLoading(true);
+        const unsubRooms = roomsAPI.subscribeAll(data => setRooms(data));
+        const unsubBookings = bookingsAPI.subscribeAll(data => setBookings(data));
+        const unsubComplaints = complaintsAPI.subscribeAll(data => setComplaints(data));
+        const unsubEmergencies = emergenciesAPI.subscribeAll(data => setEmergencies(data));
+        const unsubFeedback = feedbackAPI.subscribeAll(data => {
+            setFeedback(data);
+            setLoading(false); // Assume feedback is the last critical one or just stop loading here
+        });
+
+        return () => {
+            unsubRooms();
+            unsubBookings();
+            unsubComplaints();
+            unsubEmergencies();
+            unsubFeedback();
+        };
+    }, []);
 
     const addBooking = async (booking: Booking) => {
         try {
@@ -133,6 +153,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <DataContext.Provider
             value={{
+                rooms,
                 bookings,
                 complaints,
                 emergencies,

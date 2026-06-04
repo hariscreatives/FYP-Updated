@@ -172,11 +172,11 @@ export default function BookingDetails() {
                             <div className="space-y-2">
                                 <div className="flex justify-between text-sm">
                                     <span>Room rate ({nights} night{nights > 1 ? 's' : ''})</span>
-                                    <span>${booking.totalPrice}</span>
+                                    <span>PKR {booking.totalPrice.toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between font-semibold text-lg pt-2 border-t">
                                     <span>Total</span>
-                                    <span className="text-primary">${booking.totalPrice}</span>
+                                    <span className="text-primary">PKR {booking.totalPrice.toLocaleString()}</span>
                                 </div>
                             </div>
                         </div>
