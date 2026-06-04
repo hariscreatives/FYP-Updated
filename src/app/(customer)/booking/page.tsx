@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useData } from '@/context/DataContext';
 import { generateId } from '@/lib/utils';
 import type { Booking } from '@/types';
-import { format, startOfDay, eachDayOfInterval } from 'date-fns';
+import { startOfDay, eachDayOfInterval } from 'date-fns';
 
 function BookingContent() {
     const router = useRouter();
