@@ -8,30 +8,31 @@ import { LOGO_SRC } from '@/constants/logos';
 
 export default function Landing() {
     return (
-        <div className="min-h-screen">
+        <div className="flex flex-col">
             {/* Hero Section */}
-            <section className="relative bg-gradient-to-r from-[#0a192f] via-[#172a45] to-[#0a192f] text-white pt-0 pb-24">
-                {/* Full Width Video Section */}
-                <div className="w-full mb-10 animate-fade-in" style={{ animationDelay: '0.2s' }}>
-                    <div className="relative w-full aspect-[21/9] md:aspect-[25/9] overflow-hidden shadow-2xl bg-blue-950/50">
-                        <video 
-                            className="w-full h-full object-cover block"
-                            autoPlay 
-                            muted 
-                            loop
-                            /* Using the HotelNewVideo.mp4 from the public directory */
-                            src="/HotelNewVideo.mp4"
-                        >
-                            Your browser does not support the video tag.
-                        </video>
-                    </div>
+            <section className="relative min-h-[calc(100vh-5.5rem)] flex flex-col justify-center items-center overflow-hidden">
+                {/* Full Width Video Background */}
+                <div className="absolute inset-0 z-0">
+                    <video 
+                        className="w-full h-full object-cover"
+                        autoPlay 
+                        muted 
+                        loop
+                        playsInline
+                        src="/HotelNewVideo.mp4"
+                    >
+                        Your browser does not support the video tag.
+                    </video>
+                    {/* Dark overlay for better text readability */}
+                    <div className="absolute inset-0 bg-blue-950/40 mix-blend-multiply" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0a192f] via-transparent to-transparent opacity-80" />
                 </div>
 
-                <div className="container mx-auto px-4 text-center">
+                <div className="container relative z-10 mx-auto px-4 text-center pb-12 pt-8">
                     {/* Hero Logo */}
                     <div className="flex justify-center mb-8 animate-fade-in">
                         <div className="relative">
-                            <div className="absolute inset-0 rounded-3xl bg-white/10 blur-2xl scale-110" />
+                            <div className="absolute inset-0 rounded-3xl bg-white/20 blur-2xl scale-110" />
                             <img
                                 src={LOGO_SRC}
                                 alt="Grand Hotel"
@@ -40,15 +41,15 @@ export default function Landing() {
                             />
                         </div>
                     </div>
-                    <h1 className="text-5xl md:text-6xl font-bold mb-10 animate-fade-in">
+                    <h1 className="text-5xl md:text-6xl font-bold mb-10 animate-fade-in drop-shadow-lg text-white">
                         Welcome to Grand Hotel
                     </h1>
-                    <p className="text-xl md:text-2xl mb-8 text-blue-100 max-w-3xl mx-auto animate-fade-in" style={{ animationDelay: '0.4s' }}>
+                    <p className="text-xl md:text-2xl mb-10 text-white max-w-3xl mx-auto animate-fade-in drop-shadow-md" style={{ animationDelay: '0.4s' }}>
                         Experience luxury and comfort with our AI-powered concierge service.
                         Book rooms, request services, and get instant assistance 24/7.
                     </p>
                     <Link href="/chat">
-                        <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50 text-lg px-8 py-6">
+                        <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50 text-lg px-8 py-6 shadow-xl hover:shadow-2xl transition-all animate-fade-in" style={{ animationDelay: '0.6s' }}>
                             <MessageCircle className="mr-2 h-5 w-5" />
                             Start Chat with AI Assistant
                         </Button>
@@ -57,18 +58,18 @@ export default function Landing() {
             </section>
 
             {/* Features Section */}
-            <section className="py-16 bg-white">
+            <section className="min-h-[calc(100vh-5.5rem)] flex items-center py-16 bg-white">
                 <div className="container mx-auto px-4">
-                    <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">Our Services</h2>
-                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <h2 className="text-4xl font-bold text-center mb-12 text-gray-900">Our Services</h2>
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                         <Link href="/availability">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg mb-4">
-                                        <Calendar className="h-6 w-6 text-blue-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-blue-50 rounded-xl mb-6">
+                                        <Calendar className="h-7 w-7 text-blue-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Room Booking</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3">Room Booking</h3>
+                                    <p className="text-gray-600 text-lg">
                                         Browse our luxurious rooms and suites. Book your perfect stay in just a few clicks.
                                     </p>
                                 </CardContent>
@@ -76,13 +77,13 @@ export default function Landing() {
                         </Link>
 
                         <Link href="/chat">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-indigo-100 rounded-lg mb-4">
-                                        <MessageCircle className="h-6 w-6 text-indigo-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-indigo-50 rounded-xl mb-6">
+                                        <MessageCircle className="h-7 w-7 text-indigo-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">24/7 AI Chat Support</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3">24/7 AI Chat Support</h3>
+                                    <p className="text-gray-600 text-lg">
                                         Get instant answers to your questions from our intelligent AI assistant.
                                     </p>
                                 </CardContent>
@@ -90,13 +91,13 @@ export default function Landing() {
                         </Link>
 
                         <Link href="/complaint">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg mb-4">
-                                        <FileText className="h-6 w-6 text-purple-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-purple-50 rounded-xl mb-6">
+                                        <FileText className="h-7 w-7 text-purple-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Complaint & Feedback</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3">Complaint & Feedback</h3>
+                                    <p className="text-gray-600 text-lg">
                                         Share your concerns or compliments. We value your feedback.
                                     </p>
                                 </CardContent>
@@ -104,13 +105,13 @@ export default function Landing() {
                         </Link>
 
                         <Link href="/emergency">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-red-200">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg mb-4">
-                                        <Phone className="h-6 w-6 text-red-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-red-100 bg-red-50/30">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-red-100 rounded-xl mb-6">
+                                        <Phone className="h-7 w-7 text-red-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2 text-red-600">Emergency Support</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3 text-red-700">Emergency Support</h3>
+                                    <p className="text-gray-700 text-lg">
                                         Report emergencies immediately. Our staff will respond right away.
                                     </p>
                                 </CardContent>
@@ -118,13 +119,13 @@ export default function Landing() {
                         </Link>
 
                         <Link href="/feedback">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-lg mb-4">
-                                        <Star className="h-6 w-6 text-yellow-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-yellow-50 rounded-xl mb-6">
+                                        <Star className="h-7 w-7 text-yellow-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Rate Your Stay</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3">Rate Your Stay</h3>
+                                    <p className="text-gray-600 text-lg">
                                         Share your experience and help us improve our services.
                                     </p>
                                 </CardContent>
@@ -132,13 +133,13 @@ export default function Landing() {
                         </Link>
 
                         <Link href="/help">
-                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg mb-4">
-                                        <Heart className="h-6 w-6 text-green-600" />
+                            <Card className="hover:shadow-lg transition-shadow cursor-pointer h-full border-slate-200">
+                                <CardContent className="p-8">
+                                    <div className="flex items-center justify-center w-14 h-14 bg-green-50 rounded-xl mb-6">
+                                        <Heart className="h-7 w-7 text-green-600" />
                                     </div>
-                                    <h3 className="text-xl font-semibold mb-2">Help & FAQ</h3>
-                                    <p className="text-gray-600">
+                                    <h3 className="text-2xl font-semibold mb-3">Help & FAQ</h3>
+                                    <p className="text-gray-600 text-lg">
                                         Find answers to commonly asked questions about our hotel.
                                     </p>
                                 </CardContent>
@@ -149,20 +150,22 @@ export default function Landing() {
             </section>
 
             {/* Call to Action */}
-            <section className="py-16 bg-gradient-to-r from-[#0a192f] via-[#172a45] to-[#0a192f] text-white">
+            <section className="min-h-[calc(100vh-5.5rem)] flex items-center justify-center bg-gradient-to-r from-[#0a192f] via-[#172a45] to-[#0a192f] text-white py-16">
                 <div className="container mx-auto px-4 text-center">
-                    <h2 className="text-3xl font-bold mb-4">Ready to Experience Luxury?</h2>
-                    <p className="text-xl mb-8 text-blue-100">
+                    <h2 className="text-4xl md:text-5xl font-bold mb-6">Ready to Experience Luxury?</h2>
+                    <p className="text-xl md:text-2xl mb-12 text-blue-100 max-w-2xl mx-auto">
                         Start chatting with our AI assistant or browse available rooms
                     </p>
-                    <div className="flex justify-center space-x-4">
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-6">
                         <Link href="/chat">
-                            <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50">
+                            <Button size="lg" className="bg-white text-blue-950 hover:bg-blue-50 text-lg px-8 py-6 w-full sm:w-auto">
+                                <MessageCircle className="mr-2 h-5 w-5" />
                                 Start Chat
                             </Button>
                         </Link>
                         <Link href="/availability">
-                            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-950">
+                            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white hover:text-blue-950 text-lg px-8 py-6 w-full sm:w-auto bg-transparent">
+                                <Calendar className="mr-2 h-5 w-5" />
                                 View Rooms
                             </Button>
                         </Link>
