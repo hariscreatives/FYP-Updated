@@ -1,30 +1,47 @@
 import { NextRequest } from 'next/server';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 
-// Initialize Firebase Admin SDK once
-function getAdminDb() {
-    let app: App;
-    if (getApps().length === 0) {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-            app = initializeApp({
-                credential: cert(JSON.parse(serviceAccountKey)),
-            });
-        } else {
-            // No service account — use project ID alone
-            // This works because Firestore rules allow all reads/writes currently
-            app = initializeApp({
-                projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-            });
+const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!;
+const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY!;
+const FIRESTORE_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;
+
+// Convert a plain JS object to Firestore REST API document format
+function toFirestoreFields(obj: Record<string, any>): Record<string, any> {
+    const fields: Record<string, any> = {};
+    for (const [key, val] of Object.entries(obj)) {
+        if (val === null || val === undefined) {
+            fields[key] = { nullValue: null };
+        } else if (typeof val === 'boolean') {
+            fields[key] = { booleanValue: val };
+        } else if (typeof val === 'number') {
+            fields[key] = { doubleValue: val };
+        } else if (typeof val === 'string') {
+            fields[key] = { stringValue: val };
+        } else if (typeof val === 'object') {
+            fields[key] = { stringValue: JSON.stringify(val) };
         }
-    } else {
-        app = getApps()[0];
     }
-    return getFirestore(app);
+    return fields;
 }
 
-// POST /api/bookings — Create a new booking
+// Write a document to Firestore via REST API
+async function writeDocument(collection: string, docId: string, data: Record<string, any>) {
+    const url = `${FIRESTORE_BASE}/${collection}/${docId}?key=${API_KEY}`;
+    const body = { fields: toFirestoreFields(data) };
+
+    const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Firestore write failed (${res.status}): ${err}`);
+    }
+    return await res.json();
+}
+
+// POST /api/bookings — Create a new booking via Firestore REST API
 export async function POST(req: NextRequest) {
     try {
         const booking = await req.json();
@@ -41,12 +58,11 @@ export async function POST(req: NextRequest) {
             createdAt: new Date().toISOString(),
         };
 
-        const db = getAdminDb();
-        await db.collection('bookings').doc(id).set(newBooking);
+        await writeDocument('bookings', id, newBooking);
 
         // Log activity
         const actId = `act-${Date.now()}`;
-        await db.collection('activities').doc(actId).set({
+        await writeDocument('activities', actId, {
             id: actId,
             type: 'booking',
             description: `New booking by ${newBooking.guestName} for Room ${newBooking.roomNumber || ''}`,
@@ -54,7 +70,7 @@ export async function POST(req: NextRequest) {
             timestamp: new Date().toISOString(),
         });
 
-        console.log(`[/api/bookings] ✅ Booking ${id} saved to Firestore`);
+        console.log(`[/api/bookings] ✅ Booking ${id} saved to Firestore via REST API`);
         return Response.json({ success: true, booking: newBooking });
     } catch (error: any) {
         console.error('[/api/bookings] ❌ Error saving booking:', error);
@@ -62,12 +78,23 @@ export async function POST(req: NextRequest) {
     }
 }
 
-// GET /api/bookings — Fetch all bookings
+// GET /api/bookings — Fetch all bookings via Firestore REST API
 export async function GET() {
     try {
-        const db = getAdminDb();
-        const snap = await db.collection('bookings').get();
-        const bookings = snap.docs.map(doc => doc.data());
+        const url = `${FIRESTORE_BASE}/bookings?key=${API_KEY}&pageSize=200`;
+        const res = await fetch(url);
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(`Firestore read failed (${res.status}): ${err}`);
+        }
+        const data = await res.json();
+        const bookings = (data.documents || []).map((doc: any) => {
+            const out: Record<string, any> = {};
+            for (const [k, v] of Object.entries(doc.fields as Record<string, any>)) {
+                out[k] = v.stringValue ?? v.doubleValue ?? v.booleanValue ?? v.nullValue ?? null;
+            }
+            return out;
+        });
         return Response.json({ success: true, bookings });
     } catch (error: any) {
         console.error('[/api/bookings] ❌ Error fetching bookings:', error);

@@ -212,9 +212,9 @@ async function executeTool(name: string, args: any, baseUrl: string) {
 export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY;
     // Derive base URL for internal API calls
-    const origin = req.headers.get('origin') || req.headers.get('host')
-        ? `${req.headers.get('x-forwarded-proto') || 'http'}://${req.headers.get('host')}`
-        : 'http://localhost:3000';
+    const host = req.headers.get('host') || 'localhost:3000';
+    const proto = req.headers.get('x-forwarded-proto') || 'http';
+    const origin = `${proto}://${host}`;
     if (!apiKey) {
         return Response.json({
             message: "Chatbot is offline because the OPENAI_API_KEY environment variable is not configured on the server. Please add it to your .env.local file to activate OpenAI chat features."
