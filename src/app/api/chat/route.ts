@@ -193,7 +193,9 @@ async function executeTool(name: string, args: any, baseUrl: string) {
         }
 
         if (name === 'getGuestBookings') {
-            const bookings = await bookingsAPI.getAll();
+            const res = await fetch(`${baseUrl}/api/bookings`);
+            const data = await res.json();
+            const bookings = data.success ? data.bookings : [];
             const matched = bookings.filter((b: any) => {
                 if (args.bookingId && String(b.id).toLowerCase() === String(args.bookingId).toLowerCase()) return true;
                 if (args.guestEmail && String(b.guestEmail).toLowerCase() === String(args.guestEmail).toLowerCase()) return true;
