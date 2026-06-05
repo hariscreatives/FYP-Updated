@@ -364,7 +364,7 @@ export async function POST(req: Request) {
             '1. Ask for their Full Name (even if they are logged in). ' +
             '2. Ask for their Phone Number. ' +
             '3. Ask for their Email Address (skip if user is authenticated). ' +
-            '4. Call listAvailableRooms to fetch all room types. List the available room types (Single, Double, Suite, Presidential) AND add details of these room types (like price, capacity, or amenities) in your chat message, asking which category they want. ' +
+            '4. Tell them we have 4 types of rooms: Single rooms, Double rooms, Suite rooms, and Presidential rooms. Do NOT add any extra details like price, capacity, or amenities. Just list the 4 names simply, and ask which category they want. ' +
             '5. Ask for the Check-in date. ' +
             '6. Ask for the Check-out date. ' +
             '7. Now that you have the dates, call listAvailableRooms providing the selected category AND the check-in/check-out dates to fetch ONLY the truly available rooms. Since rooms in the same category have the same details, mention the shared details (like amenities and description) ONLY ONCE, and then explicitly list just the available room numbers (e.g. "Available numbers for your dates: 201, 202, 203"). Finally, ask which specific room number they want to select. ' +
