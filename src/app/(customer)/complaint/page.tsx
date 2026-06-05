@@ -55,6 +55,19 @@ export default function ComplaintPage() {
 
         try {
             await addComplaint(newComplaint);
+
+            // Send to n8n complaint agent
+            fetch(process.env.NEXT_PUBLIC_N8N_COMPLAINT_WEBHOOK!, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guestName: formData.guestName,
+                    guestEmail: formData.guestEmail,
+                    category: formData.category,
+                    description: formData.description,
+                }),
+            }).catch((err) => console.error('n8n complaint webhook error:', err));
+
             setSubmitted(true);
         } catch (err) {
             console.error('Failed to submit complaint:', err);
