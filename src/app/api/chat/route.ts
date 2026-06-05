@@ -58,6 +58,14 @@ const openAITools = [
                     maxPrice: {
                         type: 'number',
                         description: 'Optional filter for maximum room price.'
+                    },
+                    checkIn: {
+                        type: 'string',
+                        description: 'Optional check-in date in YYYY-MM-DD format to filter out booked rooms.'
+                    },
+                    checkOut: {
+                        type: 'string',
+                        description: 'Optional check-out date in YYYY-MM-DD format to filter out booked rooms.'
                     }
                 }
             }
@@ -158,12 +166,36 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
     console.log(`Executing tool: ${name} with args:`, args);
     try {
         if (name === 'listAvailableRooms') {
-            const rooms = await fetchFirestoreRooms();
-            return rooms.filter((r: any) => {
-                if (args.roomType && r.type.toLowerCase() !== args.roomType.toLowerCase()) return false;
-                if (args.maxPrice && r.price > args.maxPrice) return false;
-                return true;
-            });
+            let rooms = await fetchFirestoreRooms();
+            if (args.roomType) {
+                rooms = rooms.filter((r: any) => r.type.toLowerCase() === args.roomType.toLowerCase());
+            }
+            if (args.maxPrice) {
+                rooms = rooms.filter((r: any) => r.price <= args.maxPrice);
+            }
+            if (args.checkIn && args.checkOut) {
+                const normalizedIn = normalizeToYMD(args.checkIn);
+                const normalizedOut = normalizeToYMD(args.checkOut);
+                if (normalizedIn && normalizedOut) {
+                    const reqIn = new Date(normalizedIn).getTime();
+                    const reqOut = new Date(normalizedOut).getTime();
+                    
+                    const res = await fetch(`${baseUrl}/api/bookings`);
+                    const data = await res.json();
+                    const bookings = data.bookings || [];
+                    
+                    rooms = rooms.filter((r: any) => {
+                        const overlaps = bookings.some((b: any) => {
+                            if (b.status === 'Cancelled' || b.roomId !== r.id) return false;
+                            const bIn = new Date(b.checkIn).getTime();
+                            const bOut = new Date(b.checkOut).getTime();
+                            return reqIn < bOut && reqOut > bIn;
+                        });
+                        return !overlaps; // Keep room if it does NOT overlap
+                    });
+                }
+            }
+            return rooms;
         }
         
         if (name === 'checkRoomAvailability') {
@@ -332,12 +364,12 @@ export async function POST(req: Request) {
             '1. Ask for their Full Name (even if they are logged in). ' +
             '2. Ask for their Phone Number. ' +
             '3. Ask for their Email Address (skip if user is authenticated). ' +
-            '4. Call listAvailableRooms to fetch all room types. List the available room types (Single, Double, Suite, Presidential) AND add details of these room types (like price, capacity, or amenities) in your chat message, asking what they are looking for. ' +
+            '4. Call listAvailableRooms to fetch all room types. List the available room types (Single, Double, Suite, Presidential) AND add details of these room types (like price, capacity, or amenities) in your chat message, asking which category they want. ' +
             '5. Ask for the Check-in date. ' +
             '6. Ask for the Check-out date. ' +
-            '7. Call listAvailableRooms for the selected category. Since rooms in the same category have the same details, mention the shared details (like amenities and description) ONLY ONCE, and then explicitly list just the available room numbers (e.g. "All these rooms feature X. Available numbers: 201, 202, 203"). Finally, ask which specific room number they want. ' +
-            '8. Use the checkRoomAvailability tool to check if the selected room is available for those dates. ' +
-            '9. If the room is available, ask for the number of Guests. If the room is NOT available, display other rooms of the same category, ask them to pick another, and check availability again. ' +
+            '7. Now that you have the dates, call listAvailableRooms providing the selected category AND the check-in/check-out dates to fetch ONLY the truly available rooms. Since rooms in the same category have the same details, mention the shared details (like amenities and description) ONLY ONCE, and then explicitly list just the available room numbers (e.g. "Available numbers for your dates: 201, 202, 203"). Finally, ask which specific room number they want to select. ' +
+            '8. Use the checkRoomAvailability tool just to double check that their selected room is definitively available for those dates. ' +
+            '9. If the room is available, ask for the number of Guests. If the room is NOT available, tell them and ask them to pick another room from the available list. ' +
             '10. Finally, confirm the booking using createRoomBooking. ' +
             'IMPORTANT DATE RULES: ' +
             '- Always convert guest-provided dates to strict YYYY-MM-DD format (e.g., "June 10" → "2026-06-10", "10/6" → "2026-06-10") before calling createRoomBooking. ' +
