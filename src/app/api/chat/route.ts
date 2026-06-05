@@ -329,17 +329,16 @@ export async function POST(req: Request) {
             'Never ask multiple questions or request multiple pieces of information at once. ' +
             'Keep your responses extremely short, concise, and direct (maximum 1 or 2 sentences). Do not add conversational fluff or long introductions. ' +
             'When a guest wants to book a room, follow this EXACT step order. Never skip a step: ' +
-            '1. First ask for their Full Name (skip if user is authenticated). ' +
-            '2. Then ask for their Phone Number. ' +
-            '3. Then ask for their Email Address (skip if user is authenticated). ' +
-            '4. Ask for what room types they are looking for and explicitly list the available room types (Single, Double, Suite, Presidential) in your chat message. ' +
-            '5. Then call listAvailableRooms for the selected category and explicitly list all the available room numbers (e.g. 201, 202, 203) for that category in your chat message, and ask which specific room number they want. ' +
-            '6. Then ask for the Check-in date. ' +
-            '7. Then ask for the Check-out date. ' +
+            '1. Ask for their Full Name (even if they are logged in). ' +
+            '2. Ask for their Phone Number. ' +
+            '3. Ask for their Email Address (skip if user is authenticated). ' +
+            '4. Call listAvailableRooms to fetch all room types. List the available room types (Single, Double, Suite, Presidential) AND add details of these room types (like price, capacity, or amenities) in your chat message, asking what they are looking for. ' +
+            '5. Ask for the Check-in date. ' +
+            '6. Ask for the Check-out date. ' +
+            '7. Call listAvailableRooms for the selected category. Explicitly list the available room numbers for that category AND add details about those specific rooms in your chat message, then ask which specific room number they want. ' +
             '8. Use the checkRoomAvailability tool to check if the selected room is available for those dates. ' +
-            '9. If the room is NOT available, display all the rooms of the category the user selected, ask the user to enter another room, and check availability again until an available room is found. ' +
-            '10. Once an available room is confirmed, THEN ask for the number of Guests. ' +
-            '11. Finally, proceed to confirm the booking using createRoomBooking. ' +
+            '9. If the room is available, ask for the number of Guests. If the room is NOT available, display other rooms of the same category, ask them to pick another, and check availability again. ' +
+            '10. Finally, confirm the booking using createRoomBooking. ' +
             'IMPORTANT DATE RULES: ' +
             '- Always convert guest-provided dates to strict YYYY-MM-DD format (e.g., "June 10" → "2026-06-10", "10/6" → "2026-06-10") before calling createRoomBooking. ' +
             '- If the guest says a date without a year, assume the current year or next year if the date has already passed. ' +
@@ -351,7 +350,7 @@ export async function POST(req: Request) {
             'Maintain a polite, helpful concierge tone.';
         
         if (userContext && userContext.name) {
-            systemInstruction += ` The user you are chatting with is currently authenticated as ${userContext.name} (Email: ${userContext.email || 'N/A'}, Role: ${userContext.role || 'customer'}). Skip asking for their Full Name and Email Address, but collect the other missing details one by one.`;
+            systemInstruction += ` The user you are chatting with is currently authenticated as ${userContext.name} (Email: ${userContext.email || 'N/A'}, Role: ${userContext.role || 'customer'}). Skip asking for their Email Address since you already have it, but you MUST still ask for their Full Name and collect the other missing details one by one.`;
         }
 
         // Convert messages array to OpenAI messages format
