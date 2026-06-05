@@ -69,6 +69,23 @@ const openAITools = [
     {
         type: 'function',
         function: {
+            name: 'checkRoomAvailability',
+            description: 'Check if a specific room is available for the given check-in and check-out dates.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    roomId: { type: 'string', description: 'The ID of the room (e.g. room-1).' },
+                    roomNumber: { type: 'string', description: 'The room number (e.g. 101, 203).' },
+                    checkIn: { type: 'string', description: 'Check-in date in YYYY-MM-DD format.' },
+                    checkOut: { type: 'string', description: 'Check-out date in YYYY-MM-DD format.' },
+                },
+                required: ['checkIn', 'checkOut']
+            }
+        }
+    },
+    {
+        type: 'function',
+        function: {
             name: 'submitComplaint',
             description: 'Submit a new complaint, maintenance request, or service issue for a guest.',
             parameters: {
@@ -129,6 +146,44 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
             });
         }
         
+        if (name === 'checkRoomAvailability') {
+            let { roomId, roomNumber, checkIn, checkOut } = args;
+            
+            // Resolve roomId if only roomNumber is provided
+            if (!roomId && roomNumber) {
+                const rooms = await roomsAPI.getAll();
+                const room = rooms.find((r: any) => String(r.number) === String(roomNumber));
+                if (room) roomId = room.id;
+            }
+            if (!roomId) return { success: false, error: 'Could not find the specified room.' };
+            
+            const normalizedIn = normalizeToYMD(checkIn);
+            const normalizedOut = normalizeToYMD(checkOut);
+            if (!normalizedIn || !normalizedOut) return { success: false, error: 'Invalid dates provided.' };
+            
+            const reqIn = new Date(normalizedIn).getTime();
+            const reqOut = new Date(normalizedOut).getTime();
+            
+            // Fetch bookings
+            const res = await fetch(`${baseUrl}/api/bookings`);
+            const data = await res.json();
+            if (!data.success) return { success: false, error: 'Failed to fetch bookings.' };
+            
+            const bookings = data.bookings || [];
+            const overlaps = bookings.filter((b: any) => {
+                if (b.status === 'Cancelled' || b.roomId !== roomId) return false;
+                const bIn = new Date(b.checkIn).getTime();
+                const bOut = new Date(b.checkOut).getTime();
+                // Overlap condition: reqIn < bOut AND reqOut > bIn
+                return reqIn < bOut && reqOut > bIn;
+            });
+            
+            if (overlaps.length > 0) {
+                return { available: false, message: `Room is NOT available for these dates. It conflicts with ${overlaps.length} existing booking(s).` };
+            }
+            return { available: true, message: 'Room is available for these dates.' };
+        }
+
         if (name === 'createRoomBooking') {
             // Auto-fill from userContext if missing
             if (!args.guestName && userContext?.name) args.guestName = userContext.name;
@@ -253,14 +308,17 @@ export async function POST(req: Request) {
             'CRITICAL GUIDELINE: You must guide the guest by asking exactly ONE question at a time to gather details. ' +
             'Never ask multiple questions or request multiple pieces of information at once. ' +
             'Keep your responses extremely short, concise, and direct (maximum 1 or 2 sentences). Do not add conversational fluff or long introductions. ' +
-            'When a guest wants to book a room: ' +
+            'When a guest wants to book a room, follow this EXACT step order. Never skip a step: ' +
             '1. First ask for their Full Name (skip if user is authenticated). ' +
             '2. Then ask for their Phone Number. ' +
             '3. Then ask for their Email Address (skip if user is authenticated). ' +
-            '4. Then ask for the Check-in date. Accept any format the guest provides (e.g. "June 10", "next Friday", "10/6"). ' +
-            '5. Then ask for the Check-out date. Accept any format. ' +
-            '6. Call listAvailableRooms to get available rooms, then ask which Room Type or specific Room Number they want from the available options. ' +
-            '7. Then ask for the number of Guests. ' +
+            '4. Ask for what room types they are looking for and Call listAvailableRooms to list available room types (e.g. Single, Double, Suite, Deluxe). ' +
+            '5. Then ask which specific room number they want from the list. ' +
+            '6. Then ask for the Check-in date. ' +
+            '7. Then ask for the Check-out date. ' +
+            '8. Then ask for the number of Guests. ' +
+            '9. Use the checkRoomAvailability tool to check if the selected room is available for those dates. ' +
+            '10. If the room is available, proceed to confirm the booking using createRoomBooking. If the room is NOT available, display all the rooms of the category the user selected, ask the user to enter another room, and check availability again until an available room is found. Finally, confirm the booking. ' +
             'IMPORTANT DATE RULES: ' +
             '- Always convert guest-provided dates to strict YYYY-MM-DD format (e.g., "June 10" → "2026-06-10", "10/6" → "2026-06-10") before calling createRoomBooking. ' +
             '- If the guest says a date without a year, assume the current year or next year if the date has already passed. ' +
