@@ -115,7 +115,7 @@ const openAITools = [
 ];
 
 // Tool execution mapping
-async function executeTool(name: string, args: any, baseUrl: string) {
+async function executeTool(name: string, args: any, baseUrl: string, userContext?: any) {
     console.log(`Executing tool: ${name} with args:`, args);
     try {
         if (name === 'listAvailableRooms') {
@@ -128,6 +128,18 @@ async function executeTool(name: string, args: any, baseUrl: string) {
         }
         
         if (name === 'createRoomBooking') {
+            // Auto-fill from userContext if missing
+            if (!args.guestName && userContext?.name) args.guestName = userContext.name;
+            if (!args.guestEmail && userContext?.email) args.guestEmail = userContext.email;
+            if (!args.guestPhone && userContext?.phone) args.guestPhone = userContext.phone;
+
+            // Resolve roomId if only roomNumber is provided
+            if (!args.roomId && args.roomNumber) {
+                const rooms = await roomsAPI.getAll();
+                const room = rooms.find((r: any) => String(r.number) === String(args.roomNumber));
+                if (room) args.roomId = room.id;
+            }
+
             // Normalize date fields to YYYY-MM-DD before saving
             if (args.checkIn) {
                 const normalized = normalizeToYMD(args.checkIn);
@@ -327,7 +339,7 @@ export async function POST(req: Request) {
                         console.error('Failed to parse tool arguments:', argsString);
                     }
                     
-                    const toolResult = await executeTool(name, args, origin);
+                    const toolResult = await executeTool(name, args, origin, userContext);
                     
                     apiMessages.push({
                         role: 'tool',
