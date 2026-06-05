@@ -1,5 +1,24 @@
 import { roomsAPI, bookingsAPI, complaintsAPI, emergenciesAPI } from '@/lib/api';
 
+// Helper: Normalize a date string (any format) to YYYY-MM-DD
+function normalizeToYMD(dateStr: string): string | null {
+    if (!dateStr) return null;
+    // Already in YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
+    // Try parsing as a date
+    try {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+            // Use UTC to avoid timezone shift
+            const year = d.getUTCFullYear();
+            const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+            const day = String(d.getUTCDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+    } catch {}
+    return null;
+}
+
 // Define the database schemas/tools in OpenAI format
 const openAITools = [
     {
@@ -109,8 +128,48 @@ async function executeTool(name: string, args: any) {
         }
         
         if (name === 'createRoomBooking') {
+            // Normalize date fields to YYYY-MM-DD before saving
+            if (args.checkIn) {
+                const normalized = normalizeToYMD(args.checkIn);
+                if (!normalized) {
+                    return { success: false, error: `Invalid check-in date: "${args.checkIn}". Please use a clear date like June 10 or 2026-06-10.` };
+                }
+                args.checkIn = normalized;
+            }
+            if (args.checkOut) {
+                const normalized = normalizeToYMD(args.checkOut);
+                if (!normalized) {
+                    return { success: false, error: `Invalid check-out date: "${args.checkOut}". Please use a clear date like June 15 or 2026-06-15.` };
+                }
+                args.checkOut = normalized;
+            }
+            // Validate check-out is after check-in
+            if (args.checkIn && args.checkOut) {
+                const inDate = new Date(args.checkIn);
+                const outDate = new Date(args.checkOut);
+                if (outDate <= inDate) {
+                    return { success: false, error: 'Check-out date must be after check-in date. Please ask the guest for a valid check-out date.' };
+                }
+                // Calculate total price if not provided
+                if (!args.totalPrice && args.roomId) {
+                    const rooms = await roomsAPI.getAll();
+                    const room = rooms.find((r: any) => r.id === args.roomId);
+                    if (room) {
+                        const nights = Math.ceil((outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24));
+                        args.totalPrice = room.price * nights;
+                        if (!args.roomNumber) args.roomNumber = room.number;
+                        if (!args.roomType) args.roomType = room.type;
+                    }
+                }
+            }
+            // Ensure required fields
+            if (!args.guestName || !args.guestEmail || !args.guestPhone || !args.roomId || !args.checkIn || !args.checkOut) {
+                const missing = ['guestName','guestEmail','guestPhone','roomId','checkIn','checkOut'].filter(f => !args[f]);
+                return { success: false, error: `Missing required booking fields: ${missing.join(', ')}. Please collect all information before creating a booking.` };
+            }
+            console.log('Creating booking with normalized args:', JSON.stringify(args));
             const newBooking = await bookingsAPI.create(args);
-            return { success: true, booking: newBooking };
+            return { success: true, booking: newBooking, message: `Booking confirmed! ID: ${newBooking.id}` };
         }
         
         if (name === 'submitComplaint') {
@@ -155,7 +214,12 @@ export async function POST(req: Request) {
         }
 
         // Define system instructions including active user's details if logged in
+        // Get today's date for context
+        const today = new Date();
+        const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+        
         let systemInstruction = 'You are Grand Hotel Assistant, a friendly and professional virtual concierge. ' +
+            `Today's date is ${todayStr}. ` +
             'CRITICAL GUIDELINE: You must guide the guest by asking exactly ONE question at a time to gather details. ' +
             'Never ask multiple questions or request multiple pieces of information at once. ' +
             'Keep your responses extremely short, concise, and direct (maximum 1 or 2 sentences). Do not add conversational fluff or long introductions. ' +
@@ -163,13 +227,16 @@ export async function POST(req: Request) {
             '1. First ask for their Full Name (skip if user is authenticated). ' +
             '2. Then ask for their Phone Number. ' +
             '3. Then ask for their Email Address (skip if user is authenticated). ' +
-            '4. Then ask which Room Type or Room Number they want to book. ' +
-            '5. Then ask for the Check-in date naturally (e.g. "What day are you checking in?") and DO NOT specify or mention any date format. ' +
-            '6. Then ask for the Check-out date naturally (e.g. "And what day are you checking out?") without specifying any format. ' +
+            '4. Call listAvailableRooms to get available rooms, then ask which Room Type or specific Room Number they want. ' +
+            '5. Then ask for the Check-in date. Accept any format the guest provides (e.g. "June 10", "next Friday", "10/6"). ALWAYS convert it to YYYY-MM-DD before using in tool calls. ' +
+            '6. Then ask for the Check-out date. Accept any format. ALWAYS convert to YYYY-MM-DD. ' +
             '7. Then ask for the number of Guests. ' +
-            'The guest can say the dates in any natural language format (e.g., "next Friday", "Nov 12", "December 10th"). You must internally interpret their response and convert it to YYYY-MM-DD format when calling the createRoomBooking tool. ' +
+            'IMPORTANT DATE RULES: ' +
+            '- Always convert guest-provided dates to strict YYYY-MM-DD format (e.g., "June 10" → "2026-06-10", "10/6" → "2026-06-10") before calling createRoomBooking. ' +
+            '- If the guest says a date without a year, assume the current year or next year if the date has already passed. ' +
+            '- Check-out must be strictly after check-in. If the guest provides invalid dates, ask them to clarify. ' +
             'Collect all of these 7 items one by one sequentially before executing the createRoomBooking tool. ' +
-            'Once you have collected all info, call createRoomBooking immediately and state the confirmation. ' +
+            'Once you have collected all info, call createRoomBooking immediately. If the tool returns success=true, confirm the booking with the ID. If it returns success=false, tell the guest there was an issue and ask for clarification. ' +
             'Follow a similar one-question-at-a-time flow for filing complaints or reporting emergencies. ' +
             'Always rely on the tools to query or make changes to the database rather than making up information. ' +
             'Maintain a polite, helpful concierge tone.';

@@ -10,7 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { useData } from '@/context/DataContext';
 import { generateId } from '@/lib/utils';
 import type { Booking } from '@/types';
-import { startOfDay, eachDayOfInterval } from 'date-fns';
+import { eachDayOfInterval, addDays } from 'date-fns';
+
+// Parse YYYY-MM-DD as a LOCAL date (not UTC) to avoid timezone off-by-one bugs
+function parseLocalDate(dateStr: string): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+}
 
 function BookingContent() {
     const router = useRouter();
@@ -34,18 +40,19 @@ function BookingContent() {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // Compute booked dates for the selected room
+    // Compute booked dates for the selected room (check-in to day before check-out)
     const disabledDates = React.useMemo(() => {
         if (!formData.roomId) return [];
         
-        const roomBookings = bookings.filter(b => b.roomId === formData.roomId && (b.status === 'Confirmed' || b.status === 'Completed'));
+        const roomBookings = bookings.filter(b => b.roomId === formData.roomId && (b.status === 'Confirmed' || b.status === 'Completed' || b.status === 'Pending'));
         
         let disabled: Date[] = [];
         roomBookings.forEach(booking => {
-            const dates = eachDayOfInterval({
-                start: startOfDay(new Date(booking.checkIn)),
-                end: startOfDay(new Date(booking.checkOut))
-            });
+            if (!booking.checkIn || !booking.checkOut) return;
+            const start = parseLocalDate(booking.checkIn);
+            const end = parseLocalDate(booking.checkOut);
+            // Block from check-in through day before check-out
+            const dates = eachDayOfInterval({ start, end: addDays(end, -1) });
             disabled = [...disabled, ...dates];
         });
         return disabled;
@@ -63,16 +70,16 @@ function BookingContent() {
         if (!formData.checkOut) newErrors.checkOut = 'Check-out date is required';
         
         if (formData.checkIn && formData.checkOut) {
-            const checkInDate = startOfDay(new Date(formData.checkIn));
-            const checkOutDate = startOfDay(new Date(formData.checkOut));
+            const checkInDate = parseLocalDate(formData.checkIn);
+            const checkOutDate = parseLocalDate(formData.checkOut);
             
             if (checkOutDate <= checkInDate) {
                 newErrors.checkOut = 'Check-out must be after check-in';
             } else {
-                // Check if selected range overlaps with any disabled dates
+                // Check if selected range overlaps with any disabled dates (check-in to day before check-out)
                 const selectedDates = eachDayOfInterval({
                     start: checkInDate,
-                    end: checkOutDate
+                    end: addDays(checkOutDate, -1)
                 });
                 
                 const hasOverlap = selectedDates.some(selected => 
@@ -80,7 +87,7 @@ function BookingContent() {
                 );
                 
                 if (hasOverlap) {
-                    newErrors.checkIn = 'Selected dates overlap with an existing booking';
+                    newErrors.checkIn = 'Selected dates overlap with an existing booking. Please choose different dates.';
                 }
             }
         }
@@ -98,8 +105,8 @@ function BookingContent() {
         if (!room) return;
 
         // Calculate total price
-        const checkInDate = startOfDay(new Date(formData.checkIn));
-        const checkOutDate = startOfDay(new Date(formData.checkOut));
+        const checkInDate = parseLocalDate(formData.checkIn);
+        const checkOutDate = parseLocalDate(formData.checkOut);
         const nights = Math.ceil((checkOutDate.getTime() - checkInDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
         const totalPrice = room.price * nights;
 
