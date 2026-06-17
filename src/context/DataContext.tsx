@@ -15,7 +15,7 @@ interface DataContextType {
     updateBooking: (id: string, updates: Partial<Booking>) => Promise<void>;
     addComplaint: (complaint: Complaint) => Promise<void>;
     updateComplaint: (id: string, updates: Partial<Complaint>) => Promise<void>;
-    addEmergency: (emergency: Emergency) => Promise<void>;
+    addEmergency: (emergency: Emergency) => Promise<Emergency>;
     updateEmergency: (id: string, updates: Partial<Emergency>) => Promise<void>;
     addFeedback: (fb: Feedback) => Promise<void>;
     refreshData: () => Promise<void>;
