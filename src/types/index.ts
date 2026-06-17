@@ -53,6 +53,7 @@ export interface Emergency {
     type: 'Medical' | 'Fire' | 'Security' | 'Other';
     description: string;
     contactNumber: string;
+    guestEmail: string;
     location?: string;
     status: EmergencyStatus;
     createdAt: string;

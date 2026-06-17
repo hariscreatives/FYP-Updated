@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { useData } from '@/context/DataContext';
 import { LOGO_NO_BG_SRC } from '@/constants/logos';
 import {
     Hotel,
@@ -18,15 +19,21 @@ import {
     Menu,
     X,
     ShieldAlert,
+    Siren,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const { user, logout } = useAuth();
+    const { emergencies } = useData();
     const router = useRouter();
     const pathname = usePathname();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+    // ✅ Count only NEW (unacknowledged) emergencies
+    const newEmergencyCount = emergencies.filter((e) => e.status === 'New').length;
+    const hasNewEmergency = newEmergencyCount > 0;
 
     const handleLogoutClick = () => {
         setShowLogoutConfirm(true);
@@ -55,6 +62,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     return (
         <div className="min-h-screen bg-gray-100 font-sans">
+
+            {/* ✅ BLINKING RED EMERGENCY BANNER — shows at very top when emergency is active */}
+            {hasNewEmergency && (
+                <div
+                    className="w-full z-50 flex items-center justify-between px-4 py-2 cursor-pointer"
+                    style={{
+                        background: 'linear-gradient(90deg, #dc2626, #991b1b, #dc2626)',
+                        backgroundSize: '200% 100%',
+                        animation: 'emergencyPulse 1s ease-in-out infinite',
+                    }}
+                    onClick={() => router.push('/staff/emergencies')}
+                >
+                    <style>{`
+                        @keyframes emergencyPulse {
+                            0%, 100% { opacity: 1; background-position: 0% 50%; }
+                            50% { opacity: 0.75; background-position: 100% 50%; }
+                        }
+                        @keyframes blink {
+                            0%, 100% { opacity: 1; }
+                            50% { opacity: 0; }
+                        }
+                    `}</style>
+                    <div className="flex items-center space-x-3">
+                        {/* Blinking red light dot */}
+                        <span
+                            className="inline-block w-4 h-4 rounded-full bg-white"
+                            style={{ animation: 'blink 0.6s step-start infinite' }}
+                        />
+                        <Siren className="h-5 w-5 text-white" />
+                        <span className="text-white font-bold text-sm tracking-wide uppercase">
+                            🚨 {newEmergencyCount} ACTIVE EMERGENCY{newEmergencyCount > 1 ? 'IES' : ''} — IMMEDIATE ATTENTION REQUIRED
+                        </span>
+                    </div>
+                    <span className="text-white text-xs font-semibold underline">
+                        View Now →
+                    </span>
+                </div>
+            )}
+
             {/* Top Header */}
             <header className="bg-white border-b h-[6rem] flex items-center justify-between px-4 sticky top-0 z-30">
                 <div className="flex items-center space-x-3">
@@ -68,6 +114,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     <h1 className="text-xl font-bold hidden sm:block">Grand Hotel Management</h1>
                 </div>
                 <div className="flex items-center space-x-4">
+
+                    {/* ✅ Emergency bell icon in header with blinking red dot */}
+                    {hasNewEmergency && (
+                        <Link href="/staff/emergencies">
+                            <div className="relative cursor-pointer">
+                                <AlertCircle className="h-6 w-6 text-red-600" />
+                                <span
+                                    className="absolute -top-1 -right-1 inline-flex items-center justify-center w-4 h-4 text-xs font-bold text-white bg-red-600 rounded-full"
+                                    style={{ animation: 'blink 0.8s step-start infinite' }}
+                                >
+                                    {newEmergencyCount}
+                                </span>
+                            </div>
+                        </Link>
+                    )}
+
                     <div className="text-right hidden md:block">
                         <p className="text-sm font-medium">{user?.name}</p>
                         <p className="text-xs text-gray-500">{user?.role}</p>
@@ -94,21 +156,37 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         {navItems.map((item) => {
                             const Icon = item.icon;
                             const isActive = pathname === item.path;
+                            const isEmergencyItem = item.path === '/staff/emergencies';
+
                             return (
                                 <Link
                                     key={item.path}
                                     href={item.path}
                                     onClick={() => setSidebarOpen(false)}
                                     className={`
-                    flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors
+                    flex items-center justify-between px-4 py-3 rounded-lg transition-colors
                     ${isActive
                                             ? 'bg-primary text-primary-foreground'
-                                            : 'text-gray-700 hover:bg-gray-100'
+                                            : isEmergencyItem && hasNewEmergency
+                                                ? 'bg-red-50 text-red-700 border border-red-200'
+                                                : 'text-gray-700 hover:bg-gray-100'
                                         }
                   `}
                                 >
-                                    <Icon className="h-5 w-5" />
-                                    <span className="font-medium">{item.name}</span>
+                                    <div className="flex items-center space-x-3">
+                                        <Icon className={`h-5 w-5 ${isEmergencyItem && hasNewEmergency && !isActive ? 'text-red-600' : ''}`} />
+                                        <span className="font-medium">{item.name}</span>
+                                    </div>
+
+                                    {/* ✅ Blinking red badge on Emergencies sidebar item */}
+                                    {isEmergencyItem && hasNewEmergency && (
+                                        <span
+                                            className="inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full"
+                                            style={{ animation: 'blink 0.8s step-start infinite' }}
+                                        >
+                                            {newEmergencyCount}
+                                        </span>
+                                    )}
                                 </Link>
                             );
                         })}

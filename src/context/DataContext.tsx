@@ -118,10 +118,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const addEmergency = async (emergency: Emergency) => {
+   const addEmergency = async (emergency: Emergency) => {
         try {
             const newEmergency = await emergenciesAPI.create(emergency);
             setEmergencies(prev => [...prev, newEmergency]);
+            return newEmergency;
         } catch (error) {
             console.error('Failed to create emergency:', error);
             throw error;

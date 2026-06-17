@@ -27,19 +27,16 @@ export default function FeedbackPage() {
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
-
         if (!formData.guestName.trim()) newErrors.guestName = 'Name is required';
         if (!formData.guestEmail.trim()) newErrors.guestEmail = 'Email is required';
         if (formData.rating === 0) newErrors.rating = 'Please select a rating';
         if (!formData.comments.trim()) newErrors.comments = 'Please provide your feedback';
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-
         if (!validate()) return;
 
         const newFeedback: Feedback = {
@@ -54,17 +51,22 @@ export default function FeedbackPage() {
         try {
             await addFeedback(newFeedback);
 
-            // Send to n8n feedback agent
-            fetch(process.env.NEXT_PUBLIC_N8N_FEEDBACK_WEBHOOK!, {
+            // ✅ Send to Orchestrator
+            fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    guestName: formData.guestName,
-                    guestEmail: formData.guestEmail,
-                    rating: formData.rating,
-                    comments: formData.comments,
+                    source: 'feedback',
+                    data: {
+                        feedbackId: newFeedback.id,
+                        guestName: formData.guestName,
+                        guestEmail: formData.guestEmail,
+                        rating: formData.rating,
+                        comments: formData.comments,
+                        createdAt: newFeedback.createdAt,
+                    },
                 }),
-            }).catch((err) => console.error('n8n webhook error:', err));
+            }).catch((err) => console.error('n8n orchestrator error:', err));
 
             setSubmitted(true);
         } catch (err) {
@@ -86,9 +88,7 @@ export default function FeedbackPage() {
                         </p>
                         <div className="space-x-3">
                             <Button onClick={() => router.push('/')}>Return Home</Button>
-                            <Button variant="outline" onClick={() => router.push('/chat')}>
-                                Chat with Us
-                            </Button>
+                            <Button variant="outline" onClick={() => router.push('/chat')}>Chat with Us</Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -165,16 +165,8 @@ export default function FeedbackPage() {
                         </div>
 
                         <div className="flex space-x-3 pt-4">
-                            <Button type="submit" className="flex-1">
-                                Submit Feedback
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.push('/')}
-                            >
-                                Cancel
-                            </Button>
+                            <Button type="submit" className="flex-1">Submit Feedback</Button>
+                            <Button type="button" variant="outline" onClick={() => router.push('/')}>Cancel</Button>
                         </div>
                     </form>
                 </CardContent>

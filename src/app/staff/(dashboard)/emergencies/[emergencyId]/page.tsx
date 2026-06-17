@@ -34,18 +34,52 @@ export default function EmergencyDetails() {
     }
 
     const handleUpdate = async () => {
-        try {
-            await updateEmergency(emergency.id, {
-                status,
-                respondedBy: respondedBy || undefined,
-                acknowledgedAt: status !== 'New' && !emergency.acknowledgedAt ? new Date().toISOString() : emergency.acknowledgedAt,
-                resolvedAt: status === 'Resolved' ? new Date().toISOString() : undefined,
-            });
-            router.push('/staff/emergencies');
-        } catch (error) {
-            console.error('Failed to update emergency:', error);
+    try {
+        // ✅ Remove undefined fields before sending to Firebase
+        const updates: any = {
+            status,
+            acknowledgedAt: status !== 'New' && !emergency.acknowledgedAt
+                ? new Date().toISOString()
+                : emergency.acknowledgedAt,
+        };
+
+        // Only add respondedBy if a value is selected
+        if (respondedBy) {
+            updates.respondedBy = respondedBy;
         }
-    };
+
+        // Only add resolvedAt if status is Resolved
+        if (status === 'Resolved') {
+            updates.resolvedAt = new Date().toISOString();
+        }
+
+        await updateEmergency(emergency.id, updates);
+
+        // ✅ Send to Orchestrator when resolved
+        if (status === 'Resolved') {
+            fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source: 'emergency_resolved',
+                    data: {
+                        emergencyId: emergency.id,
+                        type: emergency.type,
+                        description: emergency.description,
+                        contactNumber: emergency.contactNumber,
+                        guestEmail: emergency.guestEmail,
+                        location: emergency.location || 'Not specified',
+                        resolvedAt: new Date().toISOString(),
+                    },
+                }),
+            }).catch((err) => console.error('n8n orchestrator error:', err));
+        }
+
+        router.push('/staff/emergencies');
+    } catch (error) {
+        console.error('Failed to update emergency:', error);
+    }
+};
 
     const getStatusVariant = (s: EmergencyStatus) => {
         switch (s) {
@@ -100,6 +134,12 @@ export default function EmergencyDetails() {
                             <p className="text-sm text-gray-600">Contact Number</p>
                             <p className="font-medium">{emergency.contactNumber}</p>
                         </div>
+                        {emergency.guestEmail && (
+                            <div>
+                                <p className="text-sm text-gray-600">Guest Email</p>
+                                <p className="font-medium">{emergency.guestEmail}</p>
+                            </div>
+                        )}
                         <div>
                             <p className="text-sm text-gray-600">Location</p>
                             <p className="font-medium">{emergency.location || 'Not specified'}</p>

@@ -28,19 +28,16 @@ export default function ComplaintPage() {
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
-
         if (!formData.guestName.trim()) newErrors.guestName = 'Name is required';
         if (!formData.guestEmail.trim()) newErrors.guestEmail = 'Email is required';
         if (!formData.category) newErrors.category = 'Please select a category';
         if (!formData.description.trim()) newErrors.description = 'Description is required';
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
-
         if (!validate()) return;
 
         const newComplaint: Complaint = {
@@ -56,17 +53,23 @@ export default function ComplaintPage() {
         try {
             await addComplaint(newComplaint);
 
-            // Send to n8n complaint agent
-            fetch(process.env.NEXT_PUBLIC_N8N_COMPLAINT_WEBHOOK!, {
+            // ✅ Send to Orchestrator
+            fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    guestName: formData.guestName,
-                    guestEmail: formData.guestEmail,
-                    category: formData.category,
-                    description: formData.description,
+                    source: 'complaint',
+                    data: {
+                        complaintId: newComplaint.id,
+                        guestName: formData.guestName,
+                        guestEmail: formData.guestEmail,
+                        category: formData.category,
+                        description: formData.description,
+                        status: 'New',
+                        createdAt: newComplaint.createdAt,
+                    },
                 }),
-            }).catch((err) => console.error('n8n complaint webhook error:', err));
+            }).catch((err) => console.error('n8n orchestrator error:', err));
 
             setSubmitted(true);
         } catch (err) {
@@ -156,16 +159,8 @@ export default function ComplaintPage() {
                         </div>
 
                         <div className="flex space-x-3 pt-4">
-                            <Button type="submit" className="flex-1">
-                                Submit Complaint
-                            </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => router.push('/')}
-                            >
-                                Cancel
-                            </Button>
+                            <Button type="submit" className="flex-1">Submit Complaint</Button>
+                            <Button type="button" variant="outline" onClick={() => router.push('/')}>Cancel</Button>
                         </div>
                     </form>
                 </CardContent>

@@ -21,6 +21,7 @@ export default function EmergencyPage() {
         type: '' as Emergency['type'] | '',
         description: '',
         contactNumber: '',
+        guestEmail: '',
         location: '',
     });
 
@@ -32,6 +33,10 @@ export default function EmergencyPage() {
         if (!formData.type) newErrors.type = 'Please select emergency type';
         if (!formData.description.trim()) newErrors.description = 'Description is required';
         if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact number is required';
+        if (!formData.guestEmail.trim()) newErrors.guestEmail = 'Email is required';
+        if (formData.guestEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.guestEmail)) {
+            newErrors.guestEmail = 'Please enter a valid email address';
+        }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -47,13 +52,33 @@ export default function EmergencyPage() {
             type: formData.type as Emergency['type'],
             description: formData.description,
             contactNumber: formData.contactNumber,
+            guestEmail: formData.guestEmail,
             location: formData.location || undefined,
             status: 'New',
             createdAt: new Date().toISOString(),
         };
 
         try {
-            await addEmergency(newEmergency);
+            const savedEmergency = await addEmergency(newEmergency);
+
+           // ✅ Send to Orchestrator
+fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        source: 'emergency',
+        data: {
+            emergencyId: savedEmergency?.id || newEmergency.id,
+            type: formData.type,
+            description: formData.description,
+            contactNumber: formData.contactNumber,
+            guestEmail: formData.guestEmail,
+            location: formData.location || 'Not specified',
+            createdAt: savedEmergency?.createdAt || newEmergency.createdAt,
+        },
+    }),
+}).catch((err) => console.error('n8n orchestrator error:', err));
+
             setSubmitted(true);
         } catch (err) {
             console.error('Failed to submit emergency report:', err);
@@ -105,6 +130,7 @@ export default function EmergencyPage() {
                 </CardHeader>
                 <CardContent className="pt-6">
                     <form onSubmit={handleSubmit} className="space-y-4">
+
                         <div>
                             <label className="block text-sm font-medium mb-1">Emergency Type *</label>
                             <Select
@@ -118,6 +144,17 @@ export default function EmergencyPage() {
                                 <option value="Other">Other</option>
                             </Select>
                             {errors.type && <p className="text-red-500 text-xs mt-1">{errors.type}</p>}
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Email Address *</label>
+                            <Input
+                                type="email"
+                                value={formData.guestEmail}
+                                onChange={(e) => setFormData({ ...formData, guestEmail: e.target.value })}
+                                placeholder="john@example.com"
+                            />
+                            {errors.guestEmail && <p className="text-red-500 text-xs mt-1">{errors.guestEmail}</p>}
                         </div>
 
                         <div>

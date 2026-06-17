@@ -73,6 +73,31 @@ export async function POST(req: NextRequest) {
         });
 
         console.log(`[/api/bookings] ✅ Booking ${id} saved to Firestore via REST API`);
+
+        // ✅ Send to Orchestrator (handles Form, Chatbot & Call Agent)
+        fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                source: 'booking',
+                data: {
+                    bookingId: newBooking.id,
+                    guestName: newBooking.guestName,
+                    guestEmail: newBooking.guestEmail,
+                    guestPhone: newBooking.guestPhone,
+                    roomNumber: newBooking.roomNumber,
+                    roomType: newBooking.roomType,
+                    checkIn: newBooking.checkIn,
+                    checkOut: newBooking.checkOut,
+                    guests: newBooking.guests,
+                    totalPrice: newBooking.totalPrice,
+                    status: newBooking.status,
+                    specialRequests: newBooking.specialRequests || 'None',
+                    createdAt: newBooking.createdAt,
+                },
+            }),
+        }).catch((err) => console.error('n8n orchestrator error:', err));
+
         return Response.json({ success: true, booking: newBooking });
     } catch (error: any) {
         console.error('[/api/bookings] ❌ Error saving booking:', error);
