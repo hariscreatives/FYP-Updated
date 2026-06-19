@@ -440,8 +440,7 @@ export const complaintsAPI = {
         }
     },
     create: async (complaint: any) => {
-        const id = `CMP-${Date.now()}`;
-        const newComplaint = {
+const id = complaint.id && complaint.id.trim() !== '' ? complaint.id.trim() : `CMP-${Date.now()}`;        const newComplaint = {
             ...complaint,
             id,
             createdAt: new Date().toISOString(),

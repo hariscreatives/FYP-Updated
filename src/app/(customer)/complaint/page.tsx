@@ -8,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useData } from '@/context/DataContext';
-import { generateId } from '@/lib/utils';
 import { CheckCircle } from 'lucide-react';
 import type { Complaint } from '@/types';
 
@@ -16,6 +15,7 @@ export default function ComplaintPage() {
     const router = useRouter();
     const { addComplaint } = useData();
     const [submitted, setSubmitted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const [formData, setFormData] = useState({
         guestName: '',
@@ -39,9 +39,11 @@ export default function ComplaintPage() {
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         if (!validate()) return;
+        if (isSubmitting) return;
+        setIsSubmitting(true);
 
         const newComplaint: Complaint = {
-            id: 'CMP' + generateId().toUpperCase(),
+            id: `CMP-${Date.now()}`, // ✅ no space — exact match with admin panel
             guestName: formData.guestName,
             guestEmail: formData.guestEmail,
             category: formData.category as Complaint['category'],
@@ -51,22 +53,23 @@ export default function ComplaintPage() {
         };
 
         try {
-            await addComplaint(newComplaint);
+            // ✅ Firebase saves with same ID from form
+            const savedComplaint = await addComplaint(newComplaint);
 
-            // ✅ Send to Orchestrator
+            // ✅ Send to Orchestrator using Firebase saved ID
             fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     source: 'complaint',
                     data: {
-                        complaintId: newComplaint.id,
+                        complaintId: savedComplaint?.id || newComplaint.id,
                         guestName: formData.guestName,
                         guestEmail: formData.guestEmail,
                         category: formData.category,
                         description: formData.description,
                         status: 'New',
-                        createdAt: newComplaint.createdAt,
+                        createdAt: savedComplaint?.createdAt || newComplaint.createdAt,
                     },
                 }),
             }).catch((err) => console.error('n8n orchestrator error:', err));
@@ -74,6 +77,7 @@ export default function ComplaintPage() {
             setSubmitted(true);
         } catch (err) {
             console.error('Failed to submit complaint:', err);
+            setIsSubmitting(false);
         }
     };
 
@@ -159,8 +163,12 @@ export default function ComplaintPage() {
                         </div>
 
                         <div className="flex space-x-3 pt-4">
-                            <Button type="submit" className="flex-1">Submit Complaint</Button>
-                            <Button type="button" variant="outline" onClick={() => router.push('/')}>Cancel</Button>
+                            <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                                {isSubmitting ? 'Submitting...' : 'Submit Complaint'}
+                            </Button>
+                            <Button type="button" variant="outline" onClick={() => router.push('/')} disabled={isSubmitting}>
+                                Cancel
+                            </Button>
                         </div>
                     </form>
                 </CardContent>

@@ -92,8 +92,8 @@ export default function BookingsList() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredBookings.map((booking) => (
-                                <TableRow key={booking.id}>
+{filteredBookings.map((booking, index) => (
+    <TableRow key={booking.id || index}>
                                     <TableCell className="font-medium">{booking.id}</TableCell>
                                     <TableCell>{booking.guestName}</TableCell>
                                     <TableCell>

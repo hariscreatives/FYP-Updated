@@ -35,19 +35,41 @@ export default function ComplaintDetails() {
         );
     }
 
-    const handleUpdate = async () => {
-        try {
-            await updateComplaint(complaint.id, {
-                status,
-                assignedTo: assignedTo || undefined,
-                notes: notes || undefined,
-                resolvedAt: status === 'Resolved' ? new Date().toISOString() : undefined,
-            });
-            router.push('/staff/complaints');
-        } catch (error) {
-            console.error('Failed to update complaint:', error);
+const handleUpdate = async () => {
+    try {
+        const resolvedAt = status === 'Resolved' ? new Date().toISOString() : undefined;
+
+        await updateComplaint(complaint.id, {
+            status,
+            assignedTo: assignedTo || '',
+            notes: notes || '',
+            resolvedAt: resolvedAt || '',
+        });
+
+        // ✅ Send to Orchestrator when complaint is resolved
+        if (status === 'Resolved') {
+            fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    source: 'complaint_resolved',
+                    data: {
+                        complaintId: complaint.id,
+                        guestName: complaint.guestName,
+                        guestEmail: complaint.guestEmail,
+                        category: complaint.category,
+                        description: complaint.description,
+                        resolvedAt: resolvedAt || new Date().toISOString(),
+                    },
+                }),
+            }).catch((err) => console.error('n8n orchestrator error:', err));
         }
-    };
+
+        router.push('/staff/complaints');
+    } catch (error) {
+        console.error('Failed to update complaint:', error);
+    }
+};
 
     const getStatusVariant = (s: ComplaintStatus) => {
         switch (s) {

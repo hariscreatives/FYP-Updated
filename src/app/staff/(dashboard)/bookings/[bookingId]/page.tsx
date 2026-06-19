@@ -35,9 +35,34 @@ export default function BookingDetails() {
         setStatus(newStatus);
         try {
             await updateBooking(booking.id, { status: newStatus });
+
+            // ✅ Trigger orchestrator when status is Confirmed or Completed
+            if (newStatus === 'Confirmed' || newStatus === 'Completed') {
+                fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: 'booking_status_update',
+                        data: {
+                            bookingId: booking.id,
+                            guestName: booking.guestName,
+                            guestEmail: booking.guestEmail,
+                            guestPhone: booking.guestPhone,
+                            roomNumber: booking.roomNumber,
+                            roomType: booking.roomType,
+                            checkIn: booking.checkIn,
+                            checkOut: booking.checkOut,
+                            guests: booking.guests,
+                            totalPrice: booking.totalPrice,
+                            specialRequests: booking.specialRequests || 'None',
+                            status: newStatus,
+                            updatedAt: new Date().toISOString(),
+                        },
+                    }),
+                }).catch((err) => console.error('n8n orchestrator error:', err));
+            }
         } catch (error) {
             console.error('Failed to update booking:', error);
-            // Revert status on error
             setStatus(booking.status);
         }
     };
@@ -111,6 +136,44 @@ export default function BookingDetails() {
                                 <option value="Completed">Completed</option>
                             </Select>
                         </div>
+
+                        {/* ✅ Cash Payment Received Button — only shows when Pending */}
+                        {status === 'Pending' && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                <p className="text-sm font-medium text-yellow-800 mb-1">💵 Cash Payment</p>
+                                <p className="text-xs text-yellow-700 mb-3">
+                                    Click below once guest has paid cash at the hotel.
+                                    This will confirm the booking and notify the guest.
+                                </p>
+                                <button
+                                    onClick={() => handleStatusChange('Confirmed')}
+                                    className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+                                >
+                                    ✅ Mark Cash Payment Received
+                                </button>
+                            </div>
+                        )}
+
+                        {/* ✅ Confirmed badge */}
+                        {status === 'Confirmed' && (
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <p className="text-sm font-medium text-green-800">✅ Payment Confirmed</p>
+                                <p className="text-xs text-green-700 mt-1">
+                                    Guest has been notified via email and WhatsApp.
+                                </p>
+                            </div>
+                        )}
+
+                        {/* ✅ Completed badge */}
+                        {status === 'Completed' && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p className="text-sm font-medium text-blue-800">🎉 Stay Completed</p>
+                                <p className="text-xs text-blue-700 mt-1">
+                                    Guest has been sent a completion notification.
+                                </p>
+                            </div>
+                        )}
+
                         <div>
                             <p className="text-sm text-gray-600 mb-2">Booked on</p>
                             <p className="font-medium">{formatDate(booking.createdAt)}</p>

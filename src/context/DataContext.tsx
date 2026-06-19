@@ -11,9 +11,9 @@ interface DataContextType {
     emergencies: Emergency[];
     feedback: Feedback[];
     loading: boolean;
-    addBooking: (booking: Booking) => Promise<void>;
+    addBooking: (booking: Booking) => Promise<Booking>;
     updateBooking: (id: string, updates: Partial<Booking>) => Promise<void>;
-    addComplaint: (complaint: Complaint) => Promise<void>;
+    addComplaint: (complaint: Complaint) => Promise<Complaint>;
     updateComplaint: (id: string, updates: Partial<Complaint>) => Promise<void>;
     addEmergency: (emergency: Emergency) => Promise<Emergency>;
     updateEmergency: (id: string, updates: Partial<Emergency>) => Promise<void>;
@@ -74,15 +74,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         };
     }, []);
 
-    const addBooking = async (booking: Booking) => {
-        try {
-            const newBooking = await bookingsAPI.create(booking);
-            setBookings(prev => [...prev, newBooking]);
-        } catch (error) {
-            console.error('Failed to create booking:', error);
-            throw error;
-        }
-    };
+const addBooking = async (booking: Booking) => {
+    try {
+        const newBooking = await bookingsAPI.create(booking);
+        setBookings(prev => [...prev, newBooking]);
+        return newBooking; // ✅ returns saved booking with correct Firebase ID
+    } catch (error) {
+        console.error('Failed to create booking:', error);
+        throw error;
+    }
+};
 
     const updateBooking = async (id: string, updates: Partial<Booking>) => {
         try {
@@ -96,16 +97,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
-    const addComplaint = async (complaint: Complaint) => {
-        try {
-            const newComplaint = await complaintsAPI.create(complaint);
-            setComplaints(prev => [...prev, newComplaint]);
-        } catch (error) {
-            console.error('Failed to create complaint:', error);
-            throw error;
-        }
-    };
-
+const addComplaint = async (complaint: Complaint) => {
+    try {
+        const newComplaint = await complaintsAPI.create(complaint);
+        setComplaints(prev => [...prev, newComplaint]);
+        return newComplaint; // ✅ return Firebase saved object with correct ID
+    } catch (error) {
+        console.error('Failed to create complaint:', error);
+        throw error;
+    }
+};
     const updateComplaint = async (id: string, updates: Partial<Complaint>) => {
         try {
             const updatedComplaint = await complaintsAPI.update(id, updates);

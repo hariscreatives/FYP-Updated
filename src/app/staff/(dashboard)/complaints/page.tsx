@@ -74,8 +74,8 @@ export default function ComplaintsList() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {filteredComplaints.map((complaint) => (
-                                <TableRow key={complaint.id}>
+{filteredComplaints.map((complaint, index) => (
+    <TableRow key={`${complaint.id}-${index}`}>
                                     <TableCell className="font-medium">{complaint.id}</TableCell>
                                     <TableCell>{complaint.guestName}</TableCell>
                                     <TableCell>
