@@ -185,7 +185,9 @@ export default function Chat() {
         setIsAITalking(true);
 
         try {
-            const userContext = user ? { name: user.name, email: user.email, role: user.role } : null;
+            // Only pass userContext for customer accounts — prevents stale admin/staff
+            // sessions from suggesting hotel staff emails in the booking flow.
+            const userContext = (user && user.role === 'customer') ? { name: user.name, email: user.email, role: user.role } : null;
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -311,7 +313,9 @@ export default function Chat() {
         setIsTyping(true);
 
         try {
-            const userContext = user ? { name: user.name, email: user.email, role: user.role } : null;
+            // Only pass userContext for customer accounts — prevents stale admin/staff
+            // sessions from suggesting hotel staff emails in the booking flow.
+            const userContext = (user && user.role === 'customer') ? { name: user.name, email: user.email, role: user.role } : null;
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
