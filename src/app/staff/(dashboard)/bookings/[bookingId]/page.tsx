@@ -32,12 +32,23 @@ export default function BookingDetails() {
     }
 
     const handleStatusChange = async (newStatus: BookingStatus) => {
+        // Prevent firing if the status isn't actually changing
+        if (newStatus === booking.status) return;
+
+        const previousStatus = booking.status;
         setStatus(newStatus);
         try {
             await updateBooking(booking.id, { status: newStatus });
 
-            // ✅ Trigger orchestrator when status is Confirmed or Completed
-            if (newStatus === 'Confirmed' || newStatus === 'Completed') {
+            // ✅ Trigger orchestrator ONLY for staff-driven status changes.
+            // Skip if newStatus === 'Confirmed' and previous was already 'Confirmed'
+            // (avoids double-firing with payment-success page for online Stripe payments).
+            // Only notify for: Pending → Confirmed (cash payment) or any → Completed.
+            const shouldNotify =
+                (newStatus === 'Confirmed' && previousStatus === 'Pending') ||
+                newStatus === 'Completed';
+
+            if (shouldNotify) {
                 fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useData } from '@/context/DataContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,11 +16,18 @@ function PaymentSuccessContent() {
     const bookingId = searchParams.get('bookingId');
     const sessionId = searchParams.get('session_id');
 
+    const hasFired = useRef(false);
+
     useEffect(() => {
         if (!bookingId || !sessionId) {
             setStatus('error');
             return;
         }
+
+        // Guard: prevent double-firing (React Strict Mode runs effects twice in dev,
+        // and browser re-renders can retrigger this on back navigation)
+        if (hasFired.current) return;
+        hasFired.current = true;
 
         const processPayment = async () => {
             try {
