@@ -524,7 +524,7 @@ export default function Chat() {
                                         href={callPaymentUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="mt-4 flex items-center justify-center gap-2 w-full max-w-xs bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-950/30 transition-all duration-200 text-sm hover:scale-[1.03] active:scale-[0.97] cursor-pointer border border-emerald-400/20"
+                                        className="mt-4 flex items-center justify-center gap-2 w-full max-w-xs bg-primary hover:bg-primary/90 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all duration-200 text-sm hover:scale-[1.03] active:scale-[0.97] cursor-pointer border border-primary/20"
                                     >
                                         <CreditCard className="h-4 w-4" />
                                         Pay via Stripe
