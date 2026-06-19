@@ -1,8 +1,7 @@
 import { complaintsAPI, emergenciesAPI } from '@/lib/api';
 
-export const maxDuration = 60; // Set max timeout to 60 seconds for Vercel
+export const maxDuration = 60;
 
-// Helper: Normalize a date string (any format) to YYYY-MM-DD
 function normalizeToYMD(dateStr: string): string | null {
     if (!dateStr) return null;
     if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) return dateStr.trim();
@@ -18,7 +17,6 @@ function normalizeToYMD(dateStr: string): string | null {
     return null;
 }
 
-// Helper: Fetch rooms from Firestore REST API
 async function fetchFirestoreRooms() {
     const PROJECT_ID = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -30,13 +28,17 @@ async function fetchFirestoreRooms() {
     return (data.documents || []).map((doc: any) => {
         const out: Record<string, any> = {};
         for (const [k, v] of Object.entries(doc.fields as Record<string, any>)) {
-            out[k] = v.stringValue ?? v.doubleValue ?? v.booleanValue ?? v.nullValue ?? null;
+            const val = v as any;
+        if (val.integerValue !== undefined) out[k] = Number(val.integerValue);
+        else if (val.doubleValue !== undefined) out[k] = Number(val.doubleValue);
+        else if (val.stringValue !== undefined) out[k] = val.stringValue;
+        else if (val.booleanValue !== undefined) out[k] = val.booleanValue;
+        else out[k] = null;
         }
         return out;
     });
 }
 
-// OpenAI Tools Definition
 const openAITools = [
     {
         type: 'function',
@@ -58,7 +60,7 @@ const openAITools = [
         type: 'function',
         function: {
             name: 'createRoomBooking',
-            description: 'Create a new room booking reservation for a guest. Always ask for payment method (online or cash) before calling this tool.',
+            description: 'Create a new room booking reservation for a guest. Always ask for payment method (online or cash) before calling this tool. IMPORTANT: Do NOT calculate totalPrice yourself — it will be calculated automatically server-side based on room price × number of nights.',
             parameters: {
                 type: 'object',
                 properties: {
@@ -71,9 +73,9 @@ const openAITools = [
                     checkIn: { type: 'string', description: 'Check-in date in YYYY-MM-DD format.' },
                     checkOut: { type: 'string', description: 'Check-out date in YYYY-MM-DD format.' },
                     guests: { type: 'number', description: 'Number of guests.' },
-                    totalPrice: { type: 'number', description: 'Total price of the booking.' },
-                    paymentMethod: { type: 'string', description: 'Payment method chosen by guest: "online" for card/online payment via Stripe, or "cash" for cash payment at hotel reception.' },
-                    specialRequests: { type: 'string', description: 'Any special requests from the guest. Use empty string if none.' }
+                    totalPrice: { type: 'number', description: 'Pass 0 here — total price is calculated automatically server-side.' },
+                    paymentMethod: { type: 'string', description: 'Payment method: "online" for card payment via Stripe, or "cash" for cash at hotel reception.' },
+                    specialRequests: { type: 'string', description: 'Any special requests. Use empty string if none.' }
                 },
                 required: ['guestName', 'guestEmail', 'guestPhone', 'roomId', 'roomNumber', 'roomType', 'checkIn', 'checkOut', 'guests', 'totalPrice', 'paymentMethod']
             }
@@ -87,8 +89,8 @@ const openAITools = [
             parameters: {
                 type: 'object',
                 properties: {
-                    roomId: { type: 'string', description: 'The ID of the room (e.g. room-1).' },
-                    roomNumber: { type: 'string', description: 'The room number (e.g. 101, 203).' },
+                    roomId: { type: 'string', description: 'The ID of the room.' },
+                    roomNumber: { type: 'string', description: 'The room number.' },
                     checkIn: { type: 'string', description: 'Check-in date in YYYY-MM-DD format.' },
                     checkOut: { type: 'string', description: 'Check-out date in YYYY-MM-DD format.' }
                 },
@@ -100,14 +102,14 @@ const openAITools = [
         type: 'function',
         function: {
             name: 'submitComplaint',
-            description: 'Submit a new complaint, maintenance request, or service issue for a guest.',
+            description: 'Submit a new complaint for a guest.',
             parameters: {
                 type: 'object',
                 properties: {
-                    guestName: { type: 'string', description: 'Name of the guest.' },
-                    guestEmail: { type: 'string', description: 'Email of the guest.' },
-                    category: { type: 'string', description: 'Category of complaint (e.g., Room, Service, Staff, Food, General).' },
-                    description: { type: 'string', description: 'Detailed description of the issue.' }
+                    guestName: { type: 'string' },
+                    guestEmail: { type: 'string' },
+                    category: { type: 'string' },
+                    description: { type: 'string' }
                 },
                 required: ['guestName', 'guestEmail', 'category', 'description']
             }
@@ -117,14 +119,14 @@ const openAITools = [
         type: 'function',
         function: {
             name: 'fileEmergencyAlert',
-            description: 'Report a critical medical, fire, or security emergency alert for immediate assistance from staff.',
+            description: 'Report an emergency.',
             parameters: {
                 type: 'object',
                 properties: {
-                    type: { type: 'string', description: 'Emergency category (Medical, Fire, Security, Other).' },
-                    description: { type: 'string', description: 'What is happening.' },
-                    contactNumber: { type: 'string', description: 'Immediate contact callback number.' },
-                    location: { type: 'string', description: 'Location of the emergency (e.g. Room 102, Lobby).' }
+                    type: { type: 'string' },
+                    description: { type: 'string' },
+                    contactNumber: { type: 'string' },
+                    location: { type: 'string' }
                 },
                 required: ['type', 'description', 'contactNumber', 'location']
             }
@@ -134,19 +136,18 @@ const openAITools = [
         type: 'function',
         function: {
             name: 'getGuestBookings',
-            description: 'Retrieve all existing bookings for a guest by their email address or a specific booking ID to check status or details.',
+            description: 'Retrieve bookings for a guest.',
             parameters: {
                 type: 'object',
                 properties: {
-                    guestEmail: { type: 'string', description: 'Email address of the guest to search for bookings.' },
-                    bookingId: { type: 'string', description: 'Optional booking ID (e.g. BK-123) to look up a specific reservation.' }
+                    guestEmail: { type: 'string' },
+                    bookingId: { type: 'string' }
                 }
             }
         }
     }
 ];
 
-// Tool execution
 async function executeTool(name: string, args: any, baseUrl: string, userContext?: any) {
     console.log(`Executing tool: ${name} with args:`, args);
     try {
@@ -200,79 +201,92 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
                 const bOut = new Date(b.checkOut).getTime();
                 return reqIn < bOut && reqOut > bIn;
             });
-            if (overlaps.length > 0) return { available: false, message: `Room is NOT available for these dates. It conflicts with ${overlaps.length} existing booking(s).` };
+            if (overlaps.length > 0) return { available: false, message: `Room is NOT available. Conflicts with ${overlaps.length} existing booking(s).` };
             return { available: true, message: 'Room is available for these dates.' };
         }
 
         if (name === 'createRoomBooking') {
-            // Auto-fill from userContext if missing
             if (!args.guestName && userContext?.name) args.guestName = userContext.name;
             if (!args.guestEmail && userContext?.email) args.guestEmail = userContext.email;
             if (!args.guestPhone && userContext?.phone) args.guestPhone = userContext.phone;
 
-            // Resolve roomId if only roomNumber is provided
+            // ✅ Resolve roomId from roomNumber if missing
             if (!args.roomId && args.roomNumber) {
-                const rooms = await fetchFirestoreRooms();
-                const room = rooms.find((r: any) => String(r.number) === String(args.roomNumber));
-                if (room) args.roomId = room.id;
+                const allRooms = await fetchFirestoreRooms();
+                const matchedRoom = allRooms.find((r: any) => String(r.number) === String(args.roomNumber));
+                if (matchedRoom) {
+                    args.roomId = matchedRoom.id;
+                    console.log(`[Booking] Resolved roomId: ${args.roomId} from roomNumber: ${args.roomNumber}, price: ${matchedRoom.price}`);
+                } else {
+                    console.log(`[Booking] Could not find room with number: ${args.roomNumber}`);
+                }
             }
 
-            // Normalize dates
             if (args.checkIn) {
                 const normalized = normalizeToYMD(args.checkIn);
-                if (!normalized) return { success: false, error: `Invalid check-in date: "${args.checkIn}". Please use a clear date like June 10 or 2026-06-10.` };
+                if (!normalized) return { success: false, error: `Invalid check-in date.` };
                 args.checkIn = normalized;
             }
             if (args.checkOut) {
                 const normalized = normalizeToYMD(args.checkOut);
-                if (!normalized) return { success: false, error: `Invalid check-out date: "${args.checkOut}". Please use a clear date like June 15 or 2026-06-15.` };
+                if (!normalized) return { success: false, error: `Invalid check-out date.` };
                 args.checkOut = normalized;
             }
 
-            // Validate dates and calculate price
+            // ✅ Always calculate totalPrice server-side
             if (args.checkIn && args.checkOut) {
                 const inDate = new Date(args.checkIn);
                 const outDate = new Date(args.checkOut);
-                if (outDate <= inDate) return { success: false, error: 'Check-out date must be after check-in date.' };
-                if (args.roomId) {
-                    const rooms = await fetchFirestoreRooms();
-                    const room = rooms.find((r: any) => r.id === args.roomId);
-                    if (room) {
-                        const nights = Math.max(1, Math.ceil((outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60 * 24)));
-                        args.totalPrice = room.price * nights;
-                        if (!args.roomNumber) args.roomNumber = room.number;
-                        if (!args.roomType) args.roomType = room.type;
+                if (outDate <= inDate) return { success: false, error: 'Check-out must be after check-in.' };
+
+                const msPerDay = 1000 * 60 * 60 * 24;
+                const nights = Math.round((outDate.getTime() - inDate.getTime()) / msPerDay);
+                const validNights = Math.max(1, nights);
+
+                // ✅ Fetch ALL rooms and find by roomId OR roomNumber
+                try {
+                    const allRooms = await fetchFirestoreRooms();
+                    console.log(`[Booking Debug] Looking for roomId: ${args.roomId}, roomNumber: ${args.roomNumber}`);
+                    console.log(`[Booking Debug] Available rooms:`, allRooms.map((r: any) => `${r.id}:${r.number}:${r.price}`).join(', '));
+
+                    let foundRoom = allRooms.find((r: any) => r.id === args.roomId);
+                    if (!foundRoom && args.roomNumber) {
+                        foundRoom = allRooms.find((r: any) => String(r.number) === String(args.roomNumber));
                     }
+
+                    if (foundRoom) {
+                        const roomPrice = Number(foundRoom.price) || 0;
+                        args.totalPrice = roomPrice * validNights;
+                        if (!args.roomId) args.roomId = foundRoom.id;
+                        if (!args.roomNumber) args.roomNumber = foundRoom.number;
+                        if (!args.roomType) args.roomType = foundRoom.type;
+                        console.log(`[Booking] Found room: ${foundRoom.id}, Price: ${roomPrice}, Nights: ${validNights}, Total: ${args.totalPrice}`);
+                    } else {
+                        console.log(`[Booking] Room NOT found! roomId: ${args.roomId}, roomNumber: ${args.roomNumber}`);
+                    }
+                } catch (priceErr) {
+                    console.error('[Booking] Price fetch error:', priceErr);
                 }
             }
 
-            // Validate required fields
             if (!args.guestName || !args.guestEmail || !args.guestPhone || !args.roomId || !args.checkIn || !args.checkOut) {
                 const missing = ['guestName', 'guestEmail', 'guestPhone', 'roomId', 'checkIn', 'checkOut'].filter(f => !args[f]);
-                return { success: false, error: `Missing required booking fields: ${missing.join(', ')}.` };
+                return { success: false, error: `Missing fields: ${missing.join(', ')}.` };
             }
 
-            // ✅ Get payment method
             const paymentMethod = (args.paymentMethod || 'cash').toLowerCase();
 
-            console.log('Creating booking with args:', JSON.stringify(args));
-
-            // Save booking to Firebase
             const bookingRes = await fetch(`${baseUrl}/api/bookings`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ ...args, specialRequests: args.specialRequests || '' }),
             });
             const bookingData = await bookingRes.json();
-            if (!bookingData.success) {
-                console.error('[createRoomBooking] /api/bookings failed:', bookingData.error);
-                return { success: false, error: bookingData.error || 'Failed to save booking.' };
-            }
+            if (!bookingData.success) return { success: false, error: bookingData.error || 'Failed to save booking.' };
 
             const savedBooking = bookingData.booking;
 
             if (paymentMethod === 'online') {
-                // ✅ Generate Stripe payment link
                 const stripeRes = await fetch(`${baseUrl}/api/stripe/create-checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -297,13 +311,12 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
                         booking: savedBooking,
                         paymentMethod: 'online',
                         paymentUrl: stripeData.url,
-                        message: `✅ Booking created! ID: ${savedBooking.id}\n💰 Total: PKR ${args.totalPrice}\n\n💳 Please complete your payment here:\n${stripeData.url}\n\nAfter payment, you will receive a confirmation email and WhatsApp message with your invoice.`,
+                        message: `✅ Booking created!\n• Booking ID: ${savedBooking.id}\n• Room: ${args.roomType} — Room ${args.roomNumber}\n• Check-in: ${args.checkIn}\n• Check-out: ${args.checkOut}\n• Total: PKR ${args.totalPrice}\n\n${stripeData.url}`,
                     };
                 } else {
-                    return { success: false, error: 'Failed to create payment link. Please try again or choose cash payment.' };
+                    return { success: false, error: 'Failed to create payment link. Please try cash payment.' };
                 }
             } else {
-                // ✅ Cash payment — send to Orchestrator as Pending
                 fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -332,7 +345,7 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
                     success: true,
                     booking: savedBooking,
                     paymentMethod: 'cash',
-                    message: `✅ Booking request submitted! ID: ${savedBooking.id}\n💰 Total Due at Hotel: PKR ${args.totalPrice}\n⏳ Status: Pending\n\nPlease pay PKR ${args.totalPrice} at the hotel reception to confirm your booking. Your room will be held for 24 hours.\n\nYou will receive a booking request email and WhatsApp message shortly.`,
+                    message: `✅ Booking submitted!\n• Booking ID: ${savedBooking.id}\n• Room: ${args.roomType} — Room ${args.roomNumber}\n• Check-in: ${args.checkIn}\n• Check-out: ${args.checkOut}\n• Total Due at Hotel: PKR ${args.totalPrice}\n⏳ Status: Pending\n\nPlease pay at hotel reception. Your room is held for 24 hours. You will receive a booking email and WhatsApp shortly.`,
                 };
             }
         }
@@ -362,7 +375,6 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
         console.error(`Tool execution failed for ${name}:`, e);
         return { success: false, error: e.message || 'Operation failed' };
     }
-
     return { error: `Tool ${name} not found` };
 }
 
@@ -373,49 +385,41 @@ export async function POST(req: Request) {
     const origin = `${proto}://${host}`;
 
     if (!apiKey) {
-        return Response.json({
-            message: "Chatbot is offline because the OPENAI_API_KEY environment variable is not configured on the server. Please add it to your .env.local file to activate OpenAI chat features."
-        });
+        return Response.json({ message: "Chatbot is offline. OPENAI_API_KEY not configured." });
     }
 
     try {
         const { messages, userContext } = await req.json();
-        if (!messages || messages.length === 0) {
-            return Response.json({ error: 'No messages provided' }, { status: 400 });
-        }
+        if (!messages || messages.length === 0) return Response.json({ error: 'No messages provided' }, { status: 400 });
 
         const today = new Date();
         const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
         let systemInstruction = 'You are Grand Hotel Assistant, a friendly and professional virtual concierge. ' +
             `Today's date is ${todayStr}. ` +
-            'CRITICAL GUIDELINE: You must guide the guest by asking exactly ONE question at a time to gather details. ' +
-            'Never ask multiple questions or request multiple pieces of information at once. ' +
-            'Keep your responses extremely short, concise, and direct (maximum 1 or 2 sentences). Do not add conversational fluff or long introductions. ' +
-            'When a guest wants to book a room, follow this EXACT step order. Never skip a step: ' +
-            '1. Ask for their Full Name (even if they are logged in). ' +
-            '2. Ask for their Phone Number. ' +
-            '3. Ask for their Email Address (skip if user is authenticated). ' +
-            '4. Tell them we have 4 types of rooms: Single rooms, Double rooms, Suite rooms, and Presidential rooms. Do NOT add any extra details like price, capacity, or amenities. Just list the 4 names simply, and ask which category they want. ' +
-            '5. Ask for the Check-in date. ' +
-            '6. Ask for the Check-out date. ' +
-            '7. Now that you have the dates, call listAvailableRooms providing the selected category AND the check-in/check-out dates to fetch ONLY the truly available rooms. Since rooms in the same category have the same details, mention the shared details (like amenities and description) ONLY ONCE, and then explicitly list just the available room numbers (e.g. "Available numbers for your dates: 201, 202, 203"). Finally, ask which specific room number they want to select. ' +
-            '8. Use the checkRoomAvailability tool just to double check that their selected room is definitively available for those dates. ' +
-            '9. If the room is available, ask for the number of Guests. If the room is NOT available, tell them and ask them to pick another room from the available list. ' +
-            '10. Ask the guest how they would like to pay: "online" (credit/debit card via secure payment link) or "cash" (pay at hotel reception). ' +
-            '11. Finally, call createRoomBooking with all collected information including the paymentMethod. ' +
-            '- If paymentMethod is "online": share the payment link from the tool response so the guest can complete payment. Tell them they will receive a confirmation email and WhatsApp after payment. ' +
-            '- If paymentMethod is "cash": inform the guest their booking request is submitted as Pending, they need to pay at reception, and they will receive a booking request email and WhatsApp shortly. ' +
-            'IMPORTANT DATE RULES: ' +
-            '- Always convert guest-provided dates to strict YYYY-MM-DD format (e.g., "June 10" → "2026-06-10", "10/6" → "2026-06-10") before calling createRoomBooking. ' +
-            '- If the guest says a date without a year, assume the current year or next year if the date has already passed. ' +
-            '- Check-out must be strictly after check-in. If the guest provides invalid dates, ask them to clarify. ' +
-            'Follow a similar one-question-at-a-time flow for filing complaints or reporting emergencies. ' +
-            'Always rely on the tools to query or make changes to the database rather than making up information. ' +
-            'Maintain a polite, helpful concierge tone.';
+            'CRITICAL: Ask exactly ONE question at a time. Never ask multiple questions at once. ' +
+            'Keep responses short and direct (1-2 sentences max). ' +
+            'When a guest wants to book a room, follow this EXACT order: ' +
+            '1. Ask for Full Name. ' +
+            '2. Ask for Phone Number. ' +
+            '3. Ask for Email (skip if authenticated). ' +
+            '4. List 4 room types: Single, Double, Suite, Presidential. Ask which they want. ' +
+            '5. Ask for Check-in date. ' +
+            '6. Ask for Check-out date. ' +
+            '7. Call listAvailableRooms with category + dates. Show available room numbers. Ask which room. ' +
+            '8. Call checkRoomAvailability to verify. ' +
+            '9. Ask number of guests. ' +
+            '10. Ask payment method: "online" (card via Stripe) or "cash" (pay at hotel). ' +
+            '11. Call createRoomBooking with all info. Pass totalPrice as 0 — server calculates it automatically. ' +
+            'IMPORTANT: NEVER calculate totalPrice yourself. Always pass 0 and let the server calculate it. ' +
+            'After booking: ' +
+            '- Online: Show booking summary with exact total. Tell guest to click the payment button. ' +
+            '- Cash: Confirm booking is pending and they will pay at reception. ' +
+            'Date rules: Convert all dates to YYYY-MM-DD. Assume current year if no year given. ' +
+            'Maintain a polite concierge tone.';
 
         if (userContext && userContext.name) {
-            systemInstruction += ` The user you are chatting with is currently authenticated as ${userContext.name} (Email: ${userContext.email || 'N/A'}, Role: ${userContext.role || 'customer'}). Skip asking for their Email Address since you already have it, but you MUST still ask for their Full Name and collect the other missing details one by one.`;
+            systemInstruction += ` Guest is authenticated: ${userContext.name} (${userContext.email}). Skip email question.`;
         }
 
         const history = messages.slice(0, -1).map((msg: any) => ({
@@ -424,7 +428,6 @@ export async function POST(req: Request) {
         }));
 
         const lastMessage = messages[messages.length - 1].message;
-
         const apiMessages: any[] = [
             { role: 'system', content: systemInstruction },
             ...history,
@@ -438,20 +441,10 @@ export async function POST(req: Request) {
 
         while (keepLooping && iterations < maxIterations) {
             iterations++;
-            console.log(`Calling OpenAI API (iteration ${iterations})...`);
-
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: 'gpt-4o-mini',
-                    messages: apiMessages,
-                    tools: openAITools,
-                    tool_choice: 'auto'
-                })
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+                body: JSON.stringify({ model: 'gpt-4o-mini', messages: apiMessages, tools: openAITools, tool_choice: 'auto' })
             });
 
             if (!response.ok) {
@@ -467,18 +460,12 @@ export async function POST(req: Request) {
             apiMessages.push(assistantMessage);
 
             if (assistantMessage.tool_calls && assistantMessage.tool_calls.length > 0) {
-                console.log(`OpenAI requested ${assistantMessage.tool_calls.length} tool call(s)`);
                 for (const toolCall of assistantMessage.tool_calls) {
                     const { name, arguments: argsString } = toolCall.function;
                     let args = {};
-                    try { args = JSON.parse(argsString); } catch (err) { console.error('Failed to parse tool arguments:', argsString); }
+                    try { args = JSON.parse(argsString); } catch (err) { }
                     const toolResult = await executeTool(name, args, origin, userContext);
-                    apiMessages.push({
-                        role: 'tool',
-                        tool_call_id: toolCall.id,
-                        name: name,
-                        content: JSON.stringify(toolResult)
-                    });
+                    apiMessages.push({ role: 'tool', tool_call_id: toolCall.id, name, content: JSON.stringify(toolResult) });
                 }
             } else {
                 responseText = assistantMessage.content || '';
@@ -489,6 +476,6 @@ export async function POST(req: Request) {
         return Response.json({ message: responseText });
     } catch (e: any) {
         console.error('Chat endpoint error:', e);
-        return Response.json({ error: e.message || 'An error occurred during chat processing' }, { status: 500 });
+        return Response.json({ error: e.message || 'An error occurred' }, { status: 500 });
     }
 }

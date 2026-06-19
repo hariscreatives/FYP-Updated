@@ -11,6 +11,17 @@ import { LOGO_NO_BG_SRC } from '@/constants/logos';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 
+// ✅ Helper to extract Stripe URL from message
+function extractStripeUrl(message: string): string | null {
+    const match = message.match(/https:\/\/checkout\.stripe\.com\S*/);
+    return match ? match[0] : null;
+}
+
+// ✅ Helper to clean message text by removing the Stripe URL
+function cleanMessageText(message: string): string {
+    return message.replace(/https:\/\/checkout\.stripe\.com\S*/g, '').trim();
+}
+
 export default function Chat() {
     const router = useRouter();
     const { user } = useAuth();
@@ -32,7 +43,7 @@ export default function Chat() {
     const [callStatus, setCallStatus] = useState<'ringing' | 'connected' | 'ended'>('ringing');
     const [callDuration, setCallDuration] = useState(0);
     const [isMuted, setIsMuted] = useState(false);
-    const [isSpeakerOn, setIsSpeakerOn] = useState(true); // Default to true so user hears output
+    const [isSpeakerOn, setIsSpeakerOn] = useState(true);
     const [callTranscript, setCallTranscript] = useState<string>('');
     const [isAITalking, setIsAITalking] = useState(false);
 
@@ -44,34 +55,16 @@ export default function Chat() {
     const isSpeakerOnRef = useRef(isSpeakerOn);
     const messagesRef = useRef<ChatMessage[]>([]);
 
-    // Keep refs in sync for event listeners and async handlers
-    useEffect(() => {
-        isMutedRef.current = isMuted;
-    }, [isMuted]);
+    useEffect(() => { isMutedRef.current = isMuted; }, [isMuted]);
+    useEffect(() => { isAITalkingRef.current = isAITalking; }, [isAITalking]);
+    useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
+    useEffect(() => { isSpeakerOnRef.current = isSpeakerOn; }, [isSpeakerOn]);
+    useEffect(() => { messagesRef.current = messages; }, [messages]);
 
-    useEffect(() => {
-        isAITalkingRef.current = isAITalking;
-    }, [isAITalking]);
-
-    useEffect(() => {
-        callStatusRef.current = callStatus;
-    }, [callStatus]);
-
-    useEffect(() => {
-        isSpeakerOnRef.current = isSpeakerOn;
-    }, [isSpeakerOn]);
-
-    useEffect(() => {
-        messagesRef.current = messages;
-    }, [messages]);
-
-    // Timer for connected call duration
     useEffect(() => {
         let timer: NodeJS.Timeout;
         if (isCalling && callStatus === 'connected') {
-            timer = setInterval(() => {
-                setCallDuration(prev => prev + 1);
-            }, 1000);
+            timer = setInterval(() => setCallDuration(prev => prev + 1), 1000);
         } else {
             setCallDuration(0);
         }
@@ -84,27 +77,21 @@ export default function Chat() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
 
-    // Helper to synthesize speech and speak it aloud
     const speakText = (text: string, callback?: () => void) => {
         if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
             if (callback) callback();
             return;
         }
-
-        // Cancel any active/pending synthesis
         window.speechSynthesis.cancel();
-
         if (isSpeakerOnRef.current) {
-            // Remove emojis and special markers for cleaner reading
             const cleanText = text
                 .replace(/[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]/g, "")
                 .replace(/\*+/g, "")
+                .replace(/https?:\/\/\S+/g, "payment link")
                 .trim();
             const utterance = new SpeechSynthesisUtterance(cleanText);
-
             setIsAITalking(true);
             isAITalkingRef.current = true;
-
             utterance.onend = () => {
                 setIsAITalking(false);
                 isAITalkingRef.current = false;
@@ -119,24 +106,19 @@ export default function Chat() {
             };
             window.speechSynthesis.speak(utterance);
         } else {
-            // Speaker is off, so trigger callback immediately
             setIsAITalking(false);
             isAITalkingRef.current = false;
             isWaitingForAIRef.current = false;
-            if (callback) {
-                setTimeout(callback, 500);
-            }
+            if (callback) setTimeout(callback, 500);
         }
     };
 
-    // Helper to start/resume the SpeechRecognition service
     const startListening = () => {
         if (typeof window === 'undefined') return;
         if (isMutedRef.current || isAITalkingRef.current || isWaitingForAIRef.current) return;
 
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            console.warn("Speech recognition not supported in this browser.");
             setCallTranscript("Voice call connected. (Speech Recognition not supported in this browser)");
             return;
         }
@@ -155,11 +137,7 @@ export default function Chat() {
 
             recognition.onresult = async (event: any) => {
                 const transcript = event.results[0][0].transcript;
-                if (transcript) {
-                    // Ignore if muted or already processing/talking
-                    if (isMutedRef.current || isAITalkingRef.current || isWaitingForAIRef.current) {
-                        return;
-                    }
+                if (transcript && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
                     isWaitingForAIRef.current = true;
                     try { recognition.stop(); } catch (e) { }
                     await handleVoiceInput(transcript);
@@ -167,8 +145,6 @@ export default function Chat() {
             };
 
             recognition.onerror = (event: any) => {
-                console.log('Speech recognition error:', event.error);
-                // Restart on silent/no-speech errors if conditions are met
                 if (event.error === 'no-speech') {
                     if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
                         setTimeout(() => {
@@ -181,7 +157,6 @@ export default function Chat() {
             };
 
             recognition.onend = () => {
-                // Automatically restart if connected, not muted, and not speaking/waiting
                 if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
                     setTimeout(() => {
                         if (callStatusRef.current === 'connected' && !isMutedRef.current && !isAITalkingRef.current && !isWaitingForAIRef.current) {
@@ -194,18 +169,11 @@ export default function Chat() {
             recognitionRef.current = recognition;
         }
 
-        try {
-            recognitionRef.current.start();
-        } catch (e) {
-            // Already started, ignore
-        }
+        try { recognitionRef.current.start(); } catch (e) { }
     };
 
-    // Send transcribed user input to OpenAI, get back speech response
     const handleVoiceInput = async (userInputText: string) => {
         isWaitingForAIRef.current = true;
-
-        // Stop recognition while processing/talking
         if (recognitionRef.current) {
             try { recognitionRef.current.stop(); } catch (e) { }
         }
@@ -217,71 +185,49 @@ export default function Chat() {
             timestamp: new Date().toISOString(),
         };
 
-        // Add user message to state using latest state ref
         const updatedMessages = [...messagesRef.current, userMessage];
         setMessages(updatedMessages);
         setCallTranscript(`You: "${userInputText}"`);
-        setIsAITalking(true); // show thinking spinner
+        setIsAITalking(true);
 
         try {
-            const userContext = user ? {
-                name: user.name,
-                email: user.email,
-                role: user.role
-            } : null;
-
+            const userContext = user ? { name: user.name, email: user.email, role: user.role } : null;
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: updatedMessages,
-                    userContext
-                })
+                body: JSON.stringify({ messages: updatedMessages, userContext })
             });
 
             const data = await response.json();
             const aiMessageText = data.message || data.error || "Sorry, I had trouble connecting.";
 
-            // Add AI response to state
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: (Date.now() + 1).toString(),
-                    sender: 'ai',
-                    message: aiMessageText,
-                    timestamp: new Date().toISOString(),
-                }
-            ]);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'ai',
+                message: aiMessageText,
+                timestamp: new Date().toISOString(),
+            }]);
 
-            setCallTranscript(`AI: "${aiMessageText}"`);
+            setCallTranscript(`AI: "${cleanMessageText(aiMessageText)}"`);
             refreshData();
 
-            // Speak AI text, then resume listening when finished
             speakText(aiMessageText, () => {
                 if (callStatusRef.current === 'connected' && !isMutedRef.current) {
                     startListening();
                 }
             });
-
         } catch (error) {
-            console.error('Failed to get voice response:', error);
             const errText = "I had trouble responding. Please check your connection.";
             setCallTranscript(`AI: "${errText}"`);
             speakText(errText, () => {
-                if (callStatusRef.current === 'connected' && !isMutedRef.current) {
-                    startListening();
-                }
+                if (callStatusRef.current === 'connected' && !isMutedRef.current) startListening();
             });
         }
     };
 
-    // Clicking quick option triggers voice input
     const handleVoiceResponse = (option: string) => {
         if (callStatus !== 'connected') return;
-        // Stop any current voice output first
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
         handleVoiceInput(option);
     };
 
@@ -293,20 +239,14 @@ export default function Chat() {
         isAITalkingRef.current = false;
         isWaitingForAIRef.current = false;
         setIsMuted(false);
-        setIsSpeakerOn(true); // Default to speaker on for interactive voice call
+        setIsSpeakerOn(true);
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) window.speechSynthesis.cancel();
 
-        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-            window.speechSynthesis.cancel();
-        }
-
-        // Ring for 2 seconds, then connect
         setTimeout(() => {
             setCallStatus('connected');
             const welcomeText = "Hello! Thank you for calling Grand Hotel Assistant. How can I help you today?";
             setCallTranscript(welcomeText);
-            speakText(welcomeText, () => {
-                startListening();
-            });
+            speakText(welcomeText, () => startListening());
         }, 2000);
     };
 
@@ -316,11 +256,8 @@ export default function Chat() {
         setIsAITalking(false);
         isAITalkingRef.current = false;
         isWaitingForAIRef.current = false;
-
         if (typeof window !== 'undefined') {
-            if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel();
-            }
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
         }
         if (recognitionRef.current) {
             try {
@@ -331,29 +268,20 @@ export default function Chat() {
             } catch (e) { }
             recognitionRef.current = null;
         }
-
-        setTimeout(() => {
-            setIsCalling(false);
-        }, 800);
+        setTimeout(() => setIsCalling(false), 800);
     };
 
-    // Watch mute changes to toggle recognition
     useEffect(() => {
         if (callStatus === 'connected') {
             if (isMuted) {
-                if (recognitionRef.current) {
-                    try { recognitionRef.current.stop(); } catch (e) { }
-                }
+                if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch (e) { } }
                 setCallTranscript('Microphone muted.');
             } else {
-                if (!isAITalking && !window.speechSynthesis.speaking) {
-                    startListening();
-                }
+                if (!isAITalking && !window.speechSynthesis.speaking) startListening();
             }
         }
     }, [isMuted]);
 
-    // Watch speaker changes to toggle synthesis
     useEffect(() => {
         if (callStatus === 'connected' && !isSpeakerOn) {
             if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -364,14 +292,10 @@ export default function Chat() {
         }
     }, [isSpeakerOn]);
 
-    const scrollToBottom = () => {
+    useEffect(() => {
         if (messagesContainerRef.current) {
             messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
         }
-    };
-
-    useEffect(() => {
-        scrollToBottom();
     }, [messages]);
 
     const handleSend = async () => {
@@ -390,47 +314,31 @@ export default function Chat() {
         setIsTyping(true);
 
         try {
-            const userContext = user ? {
-                name: user.name,
-                email: user.email,
-                role: user.role
-            } : null;
-
+            const userContext = user ? { name: user.name, email: user.email, role: user.role } : null;
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    messages: updatedMessages,
-                    userContext
-                })
+                body: JSON.stringify({ messages: updatedMessages, userContext })
             });
 
             const data = await response.json();
             const aiMessageText = data.message || data.error || "I'm sorry, I'm having trouble connecting right now.";
 
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: (Date.now() + 1).toString(),
-                    sender: 'ai',
-                    message: aiMessageText,
-                    timestamp: new Date().toISOString(),
-                }
-            ]);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'ai',
+                message: aiMessageText,
+                timestamp: new Date().toISOString(),
+            }]);
 
-            // Trigger background sync to immediately update local client state (bookings/complaints list)
             refreshData();
         } catch (error) {
-            console.error('Failed to get AI response:', error);
-            setMessages(prev => [
-                ...prev,
-                {
-                    id: (Date.now() + 1).toString(),
-                    sender: 'ai',
-                    message: "I'm sorry, I encountered an error communicating with the chat agent. Please check your internet connection or try again later.",
-                    timestamp: new Date().toISOString(),
-                }
-            ]);
+            setMessages(prev => [...prev, {
+                id: (Date.now() + 1).toString(),
+                sender: 'ai',
+                message: "I'm sorry, I encountered an error. Please check your internet connection or try again later.",
+                timestamp: new Date().toISOString(),
+            }]);
         } finally {
             setIsTyping(false);
         }
@@ -438,21 +346,11 @@ export default function Chat() {
 
     const handleQuickAction = (action: string) => {
         switch (action) {
-            case 'availability':
-                router.push('/availability');
-                break;
-            case 'book':
-                router.push('/booking');
-                break;
-            case 'complaint':
-                router.push('/complaint');
-                break;
-            case 'emergency':
-                router.push('/emergency');
-                break;
-            case 'feedback':
-                router.push('/feedback');
-                break;
+            case 'availability': router.push('/availability'); break;
+            case 'book': router.push('/booking'); break;
+            case 'complaint': router.push('/complaint'); break;
+            case 'emergency': router.push('/emergency'); break;
+            case 'feedback': router.push('/feedback'); break;
         }
     };
 
@@ -476,24 +374,43 @@ export default function Chat() {
 
                 {/* Messages Area */}
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-                    {messages.map((msg) => (
-                        <div
-                            key={msg.id}
-                            className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                        >
+                    {messages.map((msg) => {
+                        const stripeUrl = msg.sender === 'ai' ? extractStripeUrl(msg.message) : null;
+                        const cleanText = stripeUrl ? cleanMessageText(msg.message) : msg.message;
+
+                        return (
                             <div
-                                className={`max-w-[70%] rounded-lg px-4 py-2 ${msg.sender === 'user'
-                                    ? 'bg-primary text-primary-foreground'
-                                    : 'bg-gray-100 text-gray-900'
-                                    }`}
+                                key={msg.id}
+                                className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                             >
-                                <p>{msg.message}</p>
-                                <p className={`text-xs mt-1 ${msg.sender === 'user' ? 'text-primary-foreground/70' : 'text-gray-500'}`}>
-                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </p>
+                                <div
+                                    className={`max-w-[70%] rounded-lg px-4 py-2 ${msg.sender === 'user'
+                                        ? 'bg-primary text-primary-foreground'
+                                        : 'bg-gray-100 text-gray-900'
+                                        }`}
+                                >
+                                    {/* ✅ Message text */}
+                                    <p className="whitespace-pre-wrap">{cleanText}</p>
+
+                                    {/* ✅ Payment button — shows when Stripe URL detected */}
+                                    {stripeUrl && (
+                                        <a
+                                            href={stripeUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="mt-3 flex items-center justify-center w-full bg-primary text-white font-semibold py-2 px-4 rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                                        >
+                                            💳 Complete Payment Now
+                                        </a>
+                                    )}
+
+                                    <p className={`text-xs mt-1 ${msg.sender === 'user' ? 'text-primary-foreground/70' : 'text-gray-500'}`}>
+                                        {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
                     {isTyping && (
                         <div className="flex justify-start">
@@ -510,46 +427,20 @@ export default function Chat() {
                 <div className="px-6 py-3 border-t bg-gray-50">
                     <p className="text-sm font-medium text-gray-700 mb-2">Quick Actions:</p>
                     <div className="flex flex-wrap gap-2">
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickAction('availability')}
-                        >
-                            <Calendar className="h-4 w-4 mr-1" />
-                            Check Availability
+                        <Button size="sm" variant="outline" onClick={() => handleQuickAction('availability')}>
+                            <Calendar className="h-4 w-4 mr-1" />Check Availability
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickAction('book')}
-                        >
-                            <Hotel className="h-4 w-4 mr-1" />
-                            Book Room
+                        <Button size="sm" variant="outline" onClick={() => handleQuickAction('book')}>
+                            <Hotel className="h-4 w-4 mr-1" />Book Room
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickAction('complaint')}
-                        >
-                            <FileText className="h-4 w-4 mr-1" />
-                            File Complaint
+                        <Button size="sm" variant="outline" onClick={() => handleQuickAction('complaint')}>
+                            <FileText className="h-4 w-4 mr-1" />File Complaint
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickAction('emergency')}
-                            className="border-red-300 text-red-600 hover:bg-red-50"
-                        >
-                            <AlertCircle className="h-4 w-4 mr-1" />
-                            Emergency
+                        <Button size="sm" variant="outline" onClick={() => handleQuickAction('emergency')} className="border-red-300 text-red-600 hover:bg-red-50">
+                            <AlertCircle className="h-4 w-4 mr-1" />Emergency
                         </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleQuickAction('feedback')}
-                        >
-                            <Star className="h-4 w-4 mr-1" />
-                            Give Feedback
+                        <Button size="sm" variant="outline" onClick={() => handleQuickAction('feedback')}>
+                            <Star className="h-4 w-4 mr-1" />Give Feedback
                         </Button>
                     </div>
                 </div>
@@ -573,10 +464,8 @@ export default function Chat() {
                 {/* Voice Call Overlay */}
                 {isCalling && (
                     <div className="absolute inset-0 z-40 bg-slate-950/95 backdrop-blur-md text-white flex flex-col p-6 rounded-lg animate-in fade-in duration-300">
-                        {/* Upper Section: Status & Timer */}
                         <div className="flex flex-col items-center space-y-2 mt-2 flex-shrink-0">
                             <div className="relative">
-                                {/* Pulse circles */}
                                 {callStatus === 'ringing' && (
                                     <div className="absolute -inset-4 rounded-full bg-blue-500/20 animate-pulse pointer-events-none" />
                                 )}
@@ -587,7 +476,6 @@ export default function Chat() {
                                     <img src={LOGO_NO_BG_SRC} alt="Grand Hotel Logo" className="h-full w-full object-contain scale-110" />
                                 </div>
                             </div>
-
                             <div className="text-center space-y-0.5">
                                 <h3 className="text-xl font-bold tracking-tight">Grand Hotel Assistant</h3>
                                 <p className="text-xs font-medium text-slate-400">
@@ -598,37 +486,23 @@ export default function Chat() {
                             </div>
                         </div>
 
-                        {/* Middle Section: Subtitles & Sound Waves / Interactive Dialog (Scrollable if needed) */}
                         <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full py-4 min-h-0 overflow-y-auto scrollbar-hide">
-                            {/* Sound waves visualization */}
                             {callStatus === 'connected' && (
                                 <div className="flex items-center space-x-1.5 h-6 mb-4 flex-shrink-0">
-                                    {[1, 2, 3, 4, 5, 6, 7].map((bar) => {
-                                        const delay = bar * 0.15;
-                                        const duration = 0.5 + Math.random() * 0.5;
-                                        return (
-                                            <span
-                                                key={bar}
-                                                style={{
-                                                    animationDelay: `${delay}s`,
-                                                    animationDuration: `${duration}s`
-                                                }}
-                                                className={`w-1 rounded-full bg-blue-400 ${isAITalking ? 'animate-bounce h-6' : 'h-2'
-                                                    } transition-all duration-300`}
-                                            />
-                                        );
-                                    })}
+                                    {[1, 2, 3, 4, 5, 6, 7].map((bar) => (
+                                        <span
+                                            key={bar}
+                                            style={{ animationDelay: `${bar * 0.15}s` }}
+                                            className={`w-1 rounded-full bg-blue-400 ${isAITalking ? 'animate-bounce h-6' : 'h-2'} transition-all duration-300`}
+                                        />
+                                    ))}
                                 </div>
                             )}
 
-                            {/* Transcript/Subtitles Box */}
                             <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center shadow-inner min-h-[80px] flex items-center justify-center flex-shrink-0">
-                                <p className="text-sm text-slate-200 italic leading-relaxed">
-                                    {callTranscript}
-                                </p>
+                                <p className="text-sm text-slate-200 italic leading-relaxed">{callTranscript}</p>
                             </div>
 
-                            {/* Voice interactive options */}
                             {callStatus === 'connected' && (
                                 <div className="mt-4 w-full space-y-2 flex-shrink-0">
                                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider text-center mb-1">Speak Option:</p>
@@ -647,39 +521,24 @@ export default function Chat() {
                             )}
                         </div>
 
-                        {/* Bottom Section: Call Control Buttons (Anchored at the bottom) */}
                         <div className="flex justify-center items-center space-x-6 py-2 mt-auto flex-shrink-0">
-                            {/* Mute button */}
                             <button
                                 onClick={() => setIsMuted(!isMuted)}
                                 disabled={callStatus === 'ended'}
-                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isMuted
-                                        ? 'bg-red-500/20 border-red-500/30 text-red-500 hover:bg-red-500/30'
-                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                                    }`}
-                                title={isMuted ? "Unmute" : "Mute"}
+                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isMuted ? 'bg-red-500/20 border-red-500/30 text-red-500' : 'bg-white/5 border-white/10 text-slate-300'}`}
                             >
                                 {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
                             </button>
-
-                            {/* End call button */}
                             <button
                                 onClick={endCall}
-                                className="h-14 w-14 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 flex items-center justify-center text-white shadow-lg hover:shadow-red-900/50 hover:scale-105 transition-all duration-200 cursor-pointer animate-pulse"
-                                title="End Call"
+                                className="h-14 w-14 rounded-full bg-red-600 hover:bg-red-700 active:scale-95 flex items-center justify-center text-white shadow-lg hover:scale-105 transition-all duration-200 cursor-pointer animate-pulse"
                             >
                                 <PhoneOff className="h-6 w-6" />
                             </button>
-
-                            {/* Speaker button */}
                             <button
                                 onClick={() => setIsSpeakerOn(!isSpeakerOn)}
                                 disabled={callStatus === 'ended'}
-                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isSpeakerOn
-                                        ? 'bg-blue-500/20 border-blue-500/30 text-blue-400 hover:bg-blue-500/30'
-                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                                    }`}
-                                title="Speaker"
+                                className={`h-11 w-11 rounded-full flex items-center justify-center border transition-all duration-200 cursor-pointer ${isSpeakerOn ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' : 'bg-white/5 border-white/10 text-slate-300'}`}
                             >
                                 {isSpeakerOn ? <Volume2 className="h-5 w-5" /> : <VolumeX className="h-5 w-5" />}
                             </button>
