@@ -207,8 +207,11 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
 
         if (name === 'createRoomBooking') {
             if (!args.guestName && userContext?.name) args.guestName = userContext.name;
-            if (!args.guestEmail && userContext?.email) args.guestEmail = userContext.email;
+            // ✅ Do NOT auto-fill guestEmail from userContext — the AI always explicitly
+            // collects the confirmed email from the user during the booking flow.
+            // Auto-filling here could silently use a stale/wrong session email.
             if (!args.guestPhone && userContext?.phone) args.guestPhone = userContext.phone;
+            console.log(`[Booking] guestEmail provided by AI: "${args.guestEmail}"`);
 
             // ✅ Resolve roomId from roomNumber if missing
             if (!args.roomId && args.roomNumber) {
