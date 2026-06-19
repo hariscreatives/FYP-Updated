@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Send, Calendar, Hotel, FileText, AlertCircle, Star, Loader2, Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX } from 'lucide-react';
+import { Send, Calendar, Hotel, FileText, AlertCircle, Star, Loader2, Phone, PhoneOff, Mic, MicOff, Volume2, VolumeX, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -40,6 +40,7 @@ export default function Chat() {
     const [isSpeakerOn, setIsSpeakerOn] = useState(true);
     const [callTranscript, setCallTranscript] = useState<string>('');
     const [isAITalking, setIsAITalking] = useState(false);
+    const [callPaymentUrl, setCallPaymentUrl] = useState<string | null>(null);
 
     const recognitionRef = useRef<any>(null);
     const isMutedRef = useRef(false);
@@ -199,6 +200,10 @@ export default function Chat() {
             // ✅ Use paymentUrl directly from API response (safe, unmangled URL)
             const directPaymentUrl: string | undefined = data.paymentUrl;
 
+            if (directPaymentUrl) {
+                setCallPaymentUrl(directPaymentUrl);
+            }
+
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 sender: 'ai',
@@ -210,8 +215,12 @@ export default function Chat() {
             setCallTranscript(`AI: "${cleanMessageText(aiMessageText)}"`);
             refreshData();
 
+            const isGoodbye = /\b(goodbye|bye|farewell|have a (nice|great|good|wonderful) day)\b/i.test(aiMessageText);
+
             speakText(aiMessageText, () => {
-                if (callStatusRef.current === 'connected' && !isMutedRef.current) {
+                if (isGoodbye) {
+                    endCall();
+                } else if (callStatusRef.current === 'connected' && !isMutedRef.current) {
                     startListening();
                 }
             });
@@ -234,6 +243,7 @@ export default function Chat() {
         setIsCalling(true);
         setCallStatus('ringing');
         setCallTranscript('Ringing...');
+        setCallPaymentUrl(null);
         setIsAITalking(false);
         isAITalkingRef.current = false;
         isWaitingForAIRef.current = false;
@@ -507,8 +517,19 @@ export default function Chat() {
                                 </div>
                             )}
 
-                            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center shadow-inner min-h-[80px] flex items-center justify-center flex-shrink-0">
+                            <div className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-center shadow-inner min-h-[80px] flex flex-col items-center justify-center flex-shrink-0">
                                 <p className="text-sm text-slate-200 italic leading-relaxed">{callTranscript}</p>
+                                {callPaymentUrl && (
+                                    <a
+                                        href={callPaymentUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="mt-4 flex items-center justify-center gap-2 w-full max-w-xs bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-950/30 transition-all duration-200 text-sm hover:scale-[1.03] active:scale-[0.97] cursor-pointer border border-emerald-400/20"
+                                    >
+                                        <CreditCard className="h-4 w-4" />
+                                        Pay via Stripe
+                                    </a>
+                                )}
                             </div>
 
                             {callStatus === 'connected' && (
