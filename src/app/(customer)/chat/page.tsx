@@ -11,13 +11,7 @@ import { LOGO_NO_BG_SRC } from '@/constants/logos';
 import { useAuth } from '@/context/AuthContext';
 import { useData } from '@/context/DataContext';
 
-// ✅ Helper to extract Stripe URL from message
-function extractStripeUrl(message: string): string | null {
-    const match = message.match(/https:\/\/checkout\.stripe\.com\S*/);
-    return match ? match[0] : null;
-}
-
-// ✅ Helper to clean message text by removing the Stripe URL
+// ✅ Helper to clean message text by removing any Stripe URL the AI accidentally echoed
 function cleanMessageText(message: string): string {
     return message.replace(/https:\/\/checkout\.stripe\.com\S*/g, '').trim();
 }
@@ -200,12 +194,15 @@ export default function Chat() {
 
             const data = await response.json();
             const aiMessageText = data.message || data.error || "Sorry, I had trouble connecting.";
+            // ✅ Use paymentUrl directly from API response (safe, unmangled URL)
+            const directPaymentUrl: string | undefined = data.paymentUrl;
 
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 sender: 'ai',
-                message: aiMessageText,
+                message: cleanMessageText(aiMessageText),
                 timestamp: new Date().toISOString(),
+                paymentUrl: directPaymentUrl,
             }]);
 
             setCallTranscript(`AI: "${cleanMessageText(aiMessageText)}"`);
@@ -323,12 +320,15 @@ export default function Chat() {
 
             const data = await response.json();
             const aiMessageText = data.message || data.error || "I'm sorry, I'm having trouble connecting right now.";
+            // ✅ Use paymentUrl directly from API response (safe, unmangled URL)
+            const directPaymentUrl: string | undefined = data.paymentUrl;
 
             setMessages(prev => [...prev, {
                 id: (Date.now() + 1).toString(),
                 sender: 'ai',
-                message: aiMessageText,
+                message: cleanMessageText(aiMessageText),
                 timestamp: new Date().toISOString(),
+                paymentUrl: directPaymentUrl,
             }]);
 
             refreshData();
@@ -375,8 +375,12 @@ export default function Chat() {
                 {/* Messages Area */}
                 <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-4">
                     {messages.map((msg) => {
-                        const stripeUrl = msg.sender === 'ai' ? extractStripeUrl(msg.message) : null;
-                        const cleanText = stripeUrl ? cleanMessageText(msg.message) : msg.message;
+                        // ✅ Use paymentUrl stored directly on the message (from API response field)
+                        // Fall back to regex extraction in case of legacy messages
+                        const stripeUrl = msg.sender === 'ai'
+                            ? ((msg as any).paymentUrl || null)
+                            : null;
+                        const cleanText = cleanMessageText(msg.message);
 
                         return (
                             <div

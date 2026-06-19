@@ -287,6 +287,13 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
             const savedBooking = bookingData.booking;
 
             if (paymentMethod === 'online') {
+                console.log('[Chat→Stripe] Calling Stripe checkout at:', `${baseUrl}/api/stripe/create-checkout`);
+                console.log('[Chat→Stripe] Payload:', {
+                    bookingId: savedBooking.id,
+                    guestEmail: args.guestEmail,
+                    totalPrice: args.totalPrice,
+                    roomNumber: args.roomNumber,
+                });
                 const stripeRes = await fetch(`${baseUrl}/api/stripe/create-checkout`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -305,6 +312,7 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
                     }),
                 });
                 const stripeData = await stripeRes.json();
+                console.log('[Chat→Stripe] Response:', stripeData);
                 if (stripeData.success && stripeData.url) {
                     return {
                         success: true,
@@ -314,7 +322,8 @@ async function executeTool(name: string, args: any, baseUrl: string, userContext
                         message: `✅ Booking created!\n• Booking ID: ${savedBooking.id}\n• Room: ${args.roomType} — Room ${args.roomNumber}\n• Check-in: ${args.checkIn}\n• Check-out: ${args.checkOut}\n• Total: PKR ${args.totalPrice}\n\n${stripeData.url}`,
                     };
                 } else {
-                    return { success: false, error: 'Failed to create payment link. Please try cash payment.' };
+                    console.error('[Chat→Stripe] Stripe checkout failed:', stripeData.error);
+                    return { success: false, error: `Failed to create payment link: ${stripeData.error || 'Unknown error'}. Please try cash payment or use the manual booking page.` };
                 }
             } else {
                 fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
@@ -382,7 +391,9 @@ export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY;
     const host = req.headers.get('host') || 'localhost:3000';
     const proto = req.headers.get('x-forwarded-proto') || 'http';
-    const origin = `${proto}://${host}`;
+    const headerOrigin = `${proto}://${host}`;
+    // Prefer NEXT_PUBLIC_APP_URL for reliable internal API calls (avoids header issues in local dev)
+    const origin = (process.env.NEXT_PUBLIC_APP_URL || headerOrigin).replace(/\/$/, '');
 
     if (!apiKey) {
         return Response.json({ message: "Chatbot is offline. OPENAI_API_KEY not configured." });
@@ -399,19 +410,26 @@ export async function POST(req: Request) {
             `Today's date is ${todayStr}. ` +
             'CRITICAL: Ask exactly ONE question at a time. Never ask multiple questions at once. ' +
             'Keep responses short and direct (1-2 sentences max). ' +
-            'When a guest wants to book a room, follow this EXACT order: ' +
+            'When a guest wants to book a room, follow this EXACT order — do NOT skip any step: ' +
             '1. Ask for Full Name. ' +
             '2. Ask for Phone Number. ' +
-            '3. Ask for Email (skip if authenticated). ' +
+            '3. Ask for Email address. ALWAYS ask this — never skip it, even if guest is logged in. ' +
             '4. List 4 room types: Single, Double, Suite, Presidential. Ask which they want. ' +
             '5. Ask for Check-in date. ' +
             '6. Ask for Check-out date. ' +
-            '7. Call listAvailableRooms with category + dates. Show available room numbers. Ask which room. ' +
+            '7. Call listAvailableRooms with category + dates. Then display results in this EXACT format:\n' +
+            '   [Room Type] Rooms: [one-line description of that room type].\n' +
+            '   We have the following [Room Type] rooms available:\n' +
+            '   1. Room [number]\n' +
+            '   2. Room [number]\n' +
+            '   (and so on — list room numbers only, do NOT repeat the description for each room)\n' +
+            '   Then ask: "Which room number would you like?" ' +
             '8. Call checkRoomAvailability to verify. ' +
             '9. Ask number of guests. ' +
             '10. Ask payment method: "online" (card via Stripe) or "cash" (pay at hotel). ' +
             '11. Call createRoomBooking with all info. Pass totalPrice as 0 — server calculates it automatically. ' +
             'IMPORTANT: NEVER calculate totalPrice yourself. Always pass 0 and let the server calculate it. ' +
+            'IMPORTANT: NEVER skip step 3 (email). Always explicitly ask the guest for their email address. ' +
             'After booking: ' +
             '- Online: Show booking summary with exact total. Tell guest to click the payment button. ' +
             '- Cash: Confirm booking is pending and they will pay at reception. ' +
@@ -419,7 +437,12 @@ export async function POST(req: Request) {
             'Maintain a polite concierge tone.';
 
         if (userContext && userContext.name) {
-            systemInstruction += ` Guest is authenticated: ${userContext.name} (${userContext.email}). Skip email question.`;
+            systemInstruction += ` Guest is logged in as ${userContext.name} with registered email "${userContext.email}".` +
+                ` EMAIL STEP RULES (step 3): Ask EXACTLY this: "Is your email ${userContext.email}, or would you like to use a different one?"` +
+                ` Then handle the response as follows:` +
+                ` — If the guest confirms (says yes / okay / correct / that's fine or similar): use "${userContext.email}" as guestEmail in createRoomBooking.` +
+                ` — If the guest types a DIFFERENT email address: use THAT new email as guestEmail in createRoomBooking. Do NOT fall back to "${userContext.email}".` +
+                ` You MUST wait for the guest's reply to step 3 before moving to step 4. Never assume or auto-fill the email.`;
         }
 
         const history = messages.slice(0, -1).map((msg: any) => ({
@@ -436,6 +459,7 @@ export async function POST(req: Request) {
 
         let keepLooping = true;
         let responseText = '';
+        let paymentUrl: string | null = null;
         let iterations = 0;
         const maxIterations = 5;
 
@@ -465,7 +489,25 @@ export async function POST(req: Request) {
                     let args = {};
                     try { args = JSON.parse(argsString); } catch (err) { }
                     const toolResult = await executeTool(name, args, origin, userContext);
-                    apiMessages.push({ role: 'tool', tool_call_id: toolCall.id, name, content: JSON.stringify(toolResult) });
+
+                    // ✅ Capture paymentUrl directly from tool result BEFORE sending to OpenAI.
+                    // This prevents the AI from echoing (and potentially mangling) the long Stripe URL.
+                    if (toolResult && (toolResult as any).paymentUrl) {
+                        paymentUrl = (toolResult as any).paymentUrl;
+                        console.log('[Chat] Captured paymentUrl directly from tool result:', paymentUrl?.substring(0, 80) + '...');
+                    }
+
+                    // Strip the raw URL from what OpenAI sees — tell it a payment link was generated
+                    // so it gives the user a clean confirmation message without trying to repeat the URL.
+                    const resultForAI = { ...(toolResult as any) };
+                    if (resultForAI.paymentUrl) {
+                        delete resultForAI.paymentUrl;
+                        resultForAI.message = resultForAI.message
+                            ? resultForAI.message.replace(/https:\/\/checkout\.stripe\.com\S*/g, '[payment link generated]')
+                            : resultForAI.message;
+                    }
+
+                    apiMessages.push({ role: 'tool', tool_call_id: toolCall.id, name, content: JSON.stringify(resultForAI) });
                 }
             } else {
                 responseText = assistantMessage.content || '';
@@ -473,7 +515,7 @@ export async function POST(req: Request) {
             }
         }
 
-        return Response.json({ message: responseText });
+        return Response.json({ message: responseText, ...(paymentUrl ? { paymentUrl } : {}) });
     } catch (e: any) {
         console.error('Chat endpoint error:', e);
         return Response.json({ error: e.message || 'An error occurred' }, { status: 500 });
