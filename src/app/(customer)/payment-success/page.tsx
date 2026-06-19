@@ -7,9 +7,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
-// ✅ Fetch booking directly from Firebase REST API — does not depend on state loading
-
-
 function PaymentSuccessContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -26,59 +23,56 @@ function PaymentSuccessContent() {
         }
 
         const processPayment = async () => {
-    try {
-        // ✅ Step 1 — Read all data from URL params (most reliable)
-        const totalPrice = Number(searchParams.get('totalPrice')) || 0;
-        const guestName = searchParams.get('guestName') || '';
-        const guestEmail = searchParams.get('guestEmail') || '';
-        const guestPhone = searchParams.get('guestPhone') || '';
-        const roomNumber = searchParams.get('roomNumber') || '';
-        const roomType = searchParams.get('roomType') || '';
-        const checkIn = searchParams.get('checkIn') || '';
-        const checkOut = searchParams.get('checkOut') || '';
-        const guests = Number(searchParams.get('guests')) || 1;
-        const specialRequests = searchParams.get('specialRequests') || 'None';
+            try {
+                // ✅ Read all data from URL params
+                const totalPrice = Number(searchParams.get('totalPrice')) || 0;
+                const guestName = searchParams.get('guestName') || '';
+                const guestEmail = searchParams.get('guestEmail') || '';
+                const guestPhone = searchParams.get('guestPhone') || '';
+                const roomNumber = searchParams.get('roomNumber') || '';
+                const roomType = searchParams.get('roomType') || '';
+                const checkIn = searchParams.get('checkIn') || '';
+                const checkOut = searchParams.get('checkOut') || '';
+                const guests = Number(searchParams.get('guests')) || 1;
+                const specialRequests = searchParams.get('specialRequests') || 'None';
 
-        // ✅ Step 2 — Update booking status to Confirmed in Firebase
-        await updateBooking(bookingId, { status: 'Confirmed' });
+                // ✅ Update booking status to Confirmed in Firebase
+                await updateBooking(bookingId, { status: 'Confirmed' });
 
-        // ✅ Step 3 — Send to Orchestrator with complete data from URL
-        fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                source: 'booking',
-                data: {
-                    bookingId,
-                    guestName,
-                    guestEmail,
-                    guestPhone,
-                    roomNumber,
-                    roomType,
-                    checkIn,
-                    checkOut,
-                    guests,
-                    totalPrice,
-                    status: 'Confirmed',
-                    paymentMethod: 'Online',
-                    specialRequests,
-                    createdAt: new Date().toISOString(),
-                },
-            }),
-        }).catch((err) => console.error('n8n orchestrator error:', err));
+                // ✅ Send to Orchestrator with complete data from URL
+                fetch(process.env.NEXT_PUBLIC_N8N_ORCHESTRATOR_WEBHOOK!, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source: 'booking',
+                        data: {
+                            bookingId,
+                            guestName,
+                            guestEmail,
+                            guestPhone,
+                            roomNumber,
+                            roomType,
+                            checkIn,
+                            checkOut,
+                            guests,
+                            totalPrice,
+                            status: 'Confirmed',
+                            paymentMethod: 'Online',
+                            specialRequests,
+                            createdAt: new Date().toISOString(),
+                        },
+                    }),
+                }).catch((err) => console.error('n8n orchestrator error:', err));
 
-        setStatus('success');
-    } catch (error) {
-        console.error('Failed to process payment success:', error);
-        setStatus('error');
-    }
-};
-
-// Small delay to ensure Stripe redirect is complete
-setTimeout(processPayment, 1000);
+                setStatus('success');
+            } catch (error) {
+                console.error('Failed to process payment success:', error);
+                setStatus('error');
+            }
+        };
 
         // Small delay to ensure Stripe redirect is complete
-        setTimeout(processPayment, 1500);
+        setTimeout(processPayment, 1000);
     }, [bookingId, sessionId]);
 
     if (status === 'loading') {
